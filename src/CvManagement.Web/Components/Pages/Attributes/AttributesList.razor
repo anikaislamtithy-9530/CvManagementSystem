@@ -1,0 +1,210 @@
+@page "/attributes"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@inject IAttributeService AttributeService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Recruiter,Administrator")]
+
+<PageTitle>Attribute Library</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Attribute Library</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudTextField T="string"
+                          @bind-Value="_searchTerm"
+                          Placeholder="Search attributes..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          OnKeyUp="@((KeyboardEventArgs e) => HandleSearchKeyUp(e))" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="AttributeCategory?"
+                       @bind-Value="_filterCategory"
+                       Label="Category"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true">
+                @foreach (var cat in Enum.GetValues<AttributeCategory>())
+                {
+                    <MudSelectItem T="AttributeCategory?" Value="@cat">@cat</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="5" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="@((MouseEventArgs e) => OnSearchClick())"
+                       Class="mr-2">
+                Search
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Clear"
+                       OnClick="@((MouseEventArgs e) => OnClearClick())">
+                Clear
+            </MudButton>
+            <MudSpacer />
+            <MudButton Href="/attributes/create"
+                       Variant="Variant.Filled" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Add">
+                New Attribute
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="_attributes" Hover="true" Dense="true"
+              Filter="new Func<AttributeDefinition, bool>(FilterFunc)"
+              OnRowClick="@((TableRowClickEventArgs<AttributeDefinition> args) => OnRowClick(args))"
+              Class="cursor-pointer">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Category</MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Built-in</MudTh>
+            <MudTh>Updated</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">
+                <MudText Typo="Typo.body2"><strong>@context.Name</strong></MudText>
+                @if (!string.IsNullOrEmpty(context.Description))
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        @(context.Description.Length > 60
+                            ? context.Description.Substring(0, 60) + "..."
+                            : context.Description)
+                    </MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Category">
+                <MudChip T="string" Size="Size.Small"
+                         Color="@GetCategoryColor(context.Category)">
+                    @context.Category
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Type">
+                <MudText Typo="Typo.body2">@context.DataType</MudText>
+            </MudTd>
+            <MudTd DataLabel="Built-in">
+                @if (context.IsBuiltIn)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small"
+                             Color="Color.Warning" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption">—</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Updated">
+                <MudText Typo="Typo.body2">@context.UpdatedAt.ToString("g")</MudText>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No attributes found.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }"
+                           RowsPerPageString="Per page:" />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<AttributeDefinition> _attributes = new();
+    private string? _searchTerm;
+    private AttributeCategory? _filterCategory;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _attributes = await AttributeService.GetAllAsync(_searchTerm, _filterCategory);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task OnSearchClick()
+    {
+        await LoadAsync();
+    }
+
+    private async Task OnClearClick()
+    {
+        await ClearFilters();
+    }
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task ClearFilters()
+    {
+        _searchTerm = null;
+        _filterCategory = null;
+        await LoadAsync();
+    }
+
+    private bool FilterFunc(AttributeDefinition a)
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+            return true;
+
+        var term = _searchTerm.ToLower();
+        return a.Name.ToLower().Contains(term) ||
+               a.Description.ToLower().Contains(term);
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<AttributeDefinition> args)
+    {
+        if (args.Item != null)
+        {
+            Nav.NavigateTo($"/attributes/{args.Item.Id}");
+        }
+    }
+
+    private Color GetCategoryColor(AttributeCategory category) => category switch
+    {
+        AttributeCategory.PersonalInformation => Color.Primary,
+        AttributeCategory.Certification => Color.Success,
+        AttributeCategory.DomainKnowledge => Color.Info,
+        AttributeCategory.SoftSkills => Color.Secondary,
+        AttributeCategory.Education => Color.Warning,
+        AttributeCategory.Experience => Color.Tertiary,
+        AttributeCategory.Language => Color.Dark,
+        AttributeCategory.Technical => Color.Primary,
+        _ => Color.Default
+    };
+}

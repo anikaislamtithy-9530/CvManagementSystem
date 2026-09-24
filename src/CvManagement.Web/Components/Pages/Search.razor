@@ -1,0 +1,181 @@
+@page "/search"
+@using Microsoft.EntityFrameworkCore
+@using CvManagement.Infrastructure.Data
+@using CvManagement.Domain.Enums
+@using CvManagement.Web.Services
+@using Position = CvManagement.Domain.Entities.Position
+@using Cv = CvManagement.Domain.Entities.Cv
+@inject ApplicationDbContext Db
+@inject NavigationManager Nav
+@inject LocalizationService L
+
+<PageTitle>Search - CV Management</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Search" Class="mr-2" />
+    Search Results
+</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudTextField T="string"
+                          @bind-Value="_searchTerm"
+                          Label="Search query"
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          OnKeyUp="@((KeyboardEventArgs e) => HandleKeyUp(e))" />
+        </MudItem>
+        <MudItem xs="12" md="4" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="@((MouseEventArgs e) => DoSearchAsync())"
+                       FullWidth="true">
+                Search
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (string.IsNullOrWhiteSpace(_searchTerm))
+{
+    <MudAlert Severity="Severity.Info" Dense="true">
+        Enter a search query to begin.
+    </MudAlert>
+}
+else if (!_positions.Any() && !_cvs.Any())
+{
+    <MudAlert Severity="Severity.Warning" Dense="true">
+        No results found for "<strong>@_searchTerm</strong>"
+    </MudAlert>
+}
+else
+{
+    <!-- Positions Results -->
+    @if (_positions.Any())
+    {
+        <MudText Typo="Typo.h6" Class="mb-2">
+            Positions (@_positions.Count)
+        </MudText>
+        <MudTable Items="_positions" Hover="true" Dense="true" Class="mb-4"
+                  OnRowClick="@((TableRowClickEventArgs<Position> args) => 
+                      Nav.NavigateTo($"/positions/{args.Item?.Id}"))">
+            <HeaderContent>
+                <MudTh>Title</MudTh>
+                <MudTh>Company</MudTh>
+                <MudTh>Level</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="posContext">
+                <MudTd>@posContext.Title</MudTd>
+                <MudTd>@posContext.Company</MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary">
+                        @posContext.Level
+                    </MudChip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+
+    <!-- CVs Results (Recruiter/Admin only) -->
+    <AuthorizeView Roles="Recruiter,Administrator">
+        <Authorized>
+            @if (_cvs.Any())
+            {
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    CVs (@_cvs.Count)
+                </MudText>
+                <MudTable Items="_cvs" Hover="true" Dense="true"
+                          OnRowClick="@((TableRowClickEventArgs<Cv> args) => 
+                              Nav.NavigateTo($"/cvs/{args.Item?.Id}"))">
+                    <HeaderContent>
+                        <MudTh>Candidate</MudTh>
+                        <MudTh>Position</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Likes</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="cvContext">
+                        <MudTd>@cvContext.Candidate?.FirstName @cvContext.Candidate?.LastName</MudTd>
+                        <MudTd>@cvContext.Position?.Title</MudTd>
+                        <MudTd>@cvContext.Status</MudTd>
+                        <MudTd>@cvContext.Likes.Count</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </Authorized>
+    </AuthorizeView>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "q")]
+    public string? Query { get; set; }
+
+    private string? _searchTerm;
+    private List<Position> _positions = new();
+    private List<Cv> _cvs = new();
+    private bool _loading;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _searchTerm = Query;
+        if (!string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            await DoSearchAsync();
+        }
+    }
+
+    private async Task DoSearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm)) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var term = _searchTerm.Trim().ToLower();
+
+            _positions = await Db.Positions
+                .Where(p =>
+                    p.Title.ToLower().Contains(term) ||
+                    p.ShortDescription.ToLower().Contains(term) ||
+                    (p.Company != null && p.Company.ToLower().Contains(term)))
+                .Take(50)
+                .AsNoTracking()
+                .ToListAsync();
+
+            _cvs = await Db.Cvs
+                .Include(c => c.Candidate)
+                .Include(c => c.Position)
+                .Include(c => c.Likes)
+                .Where(c =>
+                    c.Status == CvStatus.Published &&
+                    (c.Candidate.FirstName.ToLower().Contains(term) ||
+                     c.Candidate.LastName.ToLower().Contains(term) ||
+                     c.Candidate.Email!.ToLower().Contains(term) ||
+                     c.Position.Title.ToLower().Contains(term)))
+                .Take(50)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+        catch { }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            Nav.NavigateTo($"/search?q={Uri.EscapeDataString(_searchTerm ?? "")}");
+            await DoSearchAsync();
+        }
+    }
+}

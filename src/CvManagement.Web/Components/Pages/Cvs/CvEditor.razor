@@ -1,0 +1,309 @@
+@page "/cvs/{Id:guid}/edit"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using CvManagement.Domain.Entities
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject ICvService CvService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "Candidate,Administrator")]
+
+<PageTitle>Edit CV</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_cv == null)
+{
+    <MudAlert Severity="Severity.Error">CV not found.</MudAlert>
+    <MudButton Href="/cvs" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Back to My CVs
+    </MudButton>
+}
+else
+{
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h4">Edit CV: @_cv.Position?.Title</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                @_cv.Position?.Company
+            </MudText>
+        </div>
+        @if (_cv.Status == CvStatus.Published)
+        {
+            <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                Published
+            </MudChip>
+        }
+        else
+        {
+            <MudChip T="string" Color="Color.Warning" Icon="@Icons.Material.Filled.Edit">
+                Draft
+            </MudChip>
+        }
+    </div>
+
+    <MudAlert Severity="Severity.Info" Class="mb-4" Dense="true">
+        <MudText Typo="Typo.body2">
+            <strong>💡 Tip:</strong> Attributes auto-filled from your profile. 
+            Editing here updates your profile as well (single master value).
+        </MudText>
+    </MudAlert>
+
+    <MudPaper Class="pa-6 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" />
+            CV Attributes
+        </MudText>
+
+        @foreach (var attr in _cv.Attributes.OrderBy(a => 
+            _cv.Position?.Attributes.FirstOrDefault(pa => pa.AttributeDefinitionId == a.AttributeDefinitionId)?.DisplayOrder ?? 0))
+        {
+            <div class="mb-4">
+                <MudText Typo="Typo.body2" Class="mb-1">
+                    <strong>@attr.AttributeDefinition?.Name</strong>
+                    @if (string.IsNullOrEmpty(attr.Value))
+                    {
+                        <span style="color: red; margin-left: 8px;">● Empty</span>
+                    }
+                    @if (attr.IsInheritedFromProfile)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info" Class="ml-2">
+                            From Profile
+                        </MudChip>
+                    }
+                </MudText>
+
+                @if (attr.AttributeDefinition?.DataType == AttributeDataType.Text)
+                {
+                    <MudTextField T="string"
+                                  Value="@attr.Value"
+                                  ValueChanged="@((string v) => UpdateAttribute(attr, v))"
+                                  Variant="Variant.Outlined"
+                                  Lines="4"
+                                  Placeholder="@attr.AttributeDefinition.Description"
+                                  Style="@(string.IsNullOrEmpty(attr.Value) ? "border-left: 3px solid red;" : "")" />
+                }
+                else if (attr.AttributeDefinition?.DataType == AttributeDataType.Boolean)
+                {
+                    <MudSwitch T="bool"
+                               Value="@(attr.Value == "true")"
+                               ValueChanged="@((bool v) => UpdateAttribute(attr, v.ToString().ToLower()))"
+                               Color="Color.Primary"
+                               Label="@(attr.Value == "true" ? "Yes" : "No")" />
+                }
+                else if (attr.AttributeDefinition?.DataType == AttributeDataType.Numeric)
+                {
+                    <MudNumericField T="decimal?"
+                                     Value="@(decimal.TryParse(attr.Value, out var d) ? d : (decimal?)null)"
+                                     ValueChanged="@((decimal? v) => UpdateAttribute(attr, v?.ToString() ?? ""))"
+                                     Variant="Variant.Outlined"
+                                     Min="@(attr.AttributeDefinition.MinValue ?? 0)"
+                                     Max="@(attr.AttributeDefinition.MaxValue ?? 1000)"
+                                     Placeholder="@attr.AttributeDefinition.Description"
+                                     Style="@(string.IsNullOrEmpty(attr.Value) ? "border-left: 3px solid red;" : "")" />
+                }
+                else if (attr.AttributeDefinition?.DataType == AttributeDataType.OneOfMany)
+                {
+                    var options = GetDropdownOptions(attr.AttributeDefinition.DropdownOptionsJson);
+                    <MudSelect T="string"
+                               Value="@attr.Value"
+                               ValueChanged="@((string v) => UpdateAttribute(attr, v))"
+                               Variant="Variant.Outlined"
+                               Placeholder="Select..."
+                               Style="@(string.IsNullOrEmpty(attr.Value) ? "border-left: 3px solid red;" : "")">
+                        @foreach (var opt in options)
+                        {
+                            <MudSelectItem T="string" Value="@opt">@opt</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+                else
+                {
+                    <MudTextField T="string"
+                                  Value="@attr.Value"
+                                  ValueChanged="@((string v) => UpdateAttribute(attr, v))"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="@attr.AttributeDefinition?.Description"
+                                  Style="@(string.IsNullOrEmpty(attr.Value) ? "border-left: 3px solid red;" : "")" />
+                }
+            </div>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-6 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mr-2" />
+            Projects (@_cv.Projects.Count)
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Projects are auto-selected based on position tag filter and MaxProjects setting.
+        </MudText>
+    </MudPaper>
+
+    <div class="d-flex gap-2">
+        @if (_cv.Status == CvStatus.Draft)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Publish"
+                       OnClick="@((MouseEventArgs e) => PublishAsync())"
+                       Disabled="_saving">
+                Publish CV
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Warning"
+                       StartIcon="@Icons.Material.Filled.Unpublished"
+                       OnClick="@((MouseEventArgs e) => UnpublishAsync())"
+                       Disabled="_saving">
+                Unpublish
+            </MudButton>
+        }
+
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Default"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   Href="/cvs">
+            Back to My CVs
+        </MudButton>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Cv? _cv;
+    private string? _userId;
+    private bool _loading = true;
+    private bool _saving;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("My CVs", "/cvs"),
+        new BreadcrumbItem("Edit", "/cvs", disabled: true)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            _cv = await CvService.GetByIdWithDetailsAsync(Id);
+
+            if (_cv != null)
+            {
+                _breadcrumbs = new List<BreadcrumbItem>
+                {
+                    new BreadcrumbItem("Home", "/"),
+                    new BreadcrumbItem("My CVs", "/cvs"),
+                    new BreadcrumbItem(_cv.Position?.Title ?? "CV", $"/cvs/{Id}", disabled: true),
+                    new BreadcrumbItem("Edit", $"/cvs/{Id}/edit", disabled: true)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task UpdateAttribute(CvAttribute attr, string value)
+    {
+        if (_cv == null) return;
+
+        attr.Value = value;
+        attr.IsInheritedFromProfile = false;
+
+        var (success, error) = await CvService.SaveAttributeAsync(
+            _cv.Id, attr.AttributeDefinitionId, value);
+
+        if (success)
+        {
+            Snackbar.Add($"'{attr.AttributeDefinition?.Name}' saved (synced to profile)", 
+                Severity.Success, config => config.VisibleStateDuration = 1500);
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to save", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task PublishAsync()
+    {
+        if (_cv == null || string.IsNullOrEmpty(_userId)) return;
+
+        _saving = true;
+        StateHasChanged();
+
+        var (success, error) = await CvService.PublishAsync(_cv.Id, _userId);
+
+        if (success)
+        {
+            Snackbar.Add("CV published successfully!", Severity.Success);
+            _cv.Status = CvStatus.Published;
+            _cv.PublishedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to publish.", Severity.Error);
+        }
+
+        _saving = false;
+        StateHasChanged();
+    }
+
+    private async Task UnpublishAsync()
+    {
+        if (_cv == null || string.IsNullOrEmpty(_userId)) return;
+
+        _saving = true;
+        StateHasChanged();
+
+        var (success, error) = await CvService.UnpublishAsync(_cv.Id, _userId);
+
+        if (success)
+        {
+            Snackbar.Add("CV unpublished", Severity.Info);
+            _cv.Status = CvStatus.Draft;
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to unpublish.", Severity.Error);
+        }
+
+        _saving = false;
+        StateHasChanged();
+    }
+
+    private List<string> GetDropdownOptions(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return new List<string>();
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+}

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CvManagement.Application/CvManagement.Application.csproj" />
+    <Project Path="src/CvManagement.Domain/CvManagement.Domain.csproj" />
+    <Project Path="src/CvManagement.Infrastructure/CvManagement.Infrastructure.csproj" />
+    <Project Path="src/CvManagement.Web/CvManagement.Web.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,320 @@
+﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using CvManagement.Infrastructure.Data
+@using CvManagement.Domain.Enums
+@using Position = CvManagement.Domain.Entities.Position
+@inject ApplicationDbContext Db
+@inject NavigationManager Nav
+
+<PageTitle>Home - CV Management</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    Welcome to CV Management System
+</MudText>
+
+<!-- Statistics Cards -->
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">CVs (24h)</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Primary">@_cvsLast24h</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Positions</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Primary">@_totalPositions</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Candidates</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Primary">@_totalCandidates</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Recruiters</MudText>
+            <MudText Typo="Typo.h4" Color="Color.Primary">@_totalRecruiters</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Welcome Message -->
+<MudPaper Class="pa-6 mb-4" Elevation="1">
+    <AuthorizeView>
+        <Authorized>
+            <MudText Typo="Typo.h6">
+                Hello, @context.User.Identity?.Name! 👋
+            </MudText>
+            <MudText Typo="Typo.body1" Class="mt-2">
+                You are signed in. Explore positions or manage your profile.
+            </MudText>
+        </Authorized>
+        <NotAuthorized>
+            <MudText Typo="Typo.h6">Welcome, Guest!</MudText>
+            <MudText Typo="Typo.body1" Class="mt-2 mb-3">
+                Sign in to access all features, or browse positions as a guest.
+            </MudText>
+            <MudButton Href="/login" Variant="Variant.Filled" Color="Color.Primary">
+                Sign In
+            </MudButton>
+            <MudButton Href="/register" Variant="Variant.Outlined" Color="Color.Primary" Class="ml-2">
+                Register
+            </MudButton>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudPaper>
+
+<!-- Latest + Popular Positions -->
+<MudGrid Class="mb-4">
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.NewReleases" Color="Color.Primary" Class="mr-2" />
+                <MudText Typo="Typo.h6">Latest Positions</MudText>
+            </div>
+
+            @if (!_latestPositions.Any())
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    No positions yet.
+                </MudText>
+            }
+            else
+            {
+                <MudList T="string" Dense="true">
+                    @foreach (var pos in _latestPositions)
+                    {
+                        <MudListItem T="string" OnClick="@(() => Nav.NavigateTo($"/positions/{pos.Id}"))">
+                            <div class="d-flex align-center" style="width: 100%; cursor: pointer;">
+                                <div class="flex-grow-1">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>@pos.Title</strong>
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @pos.Company
+                                    </MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="@GetLevelColor(pos.Level)">
+                                    @pos.Level
+                                </MudChip>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+
+                <MudButton Href="/positions" Variant="Variant.Text" Color="Color.Primary"
+                           FullWidth="true" Class="mt-2" EndIcon="@Icons.Material.Filled.ArrowForward">
+                    View All Positions
+                </MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="2" Style="height: 100%;">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Class="mr-2" />
+                <MudText Typo="Typo.h6">Popular Positions</MudText>
+            </div>
+
+            @if (!_popularPositions.Any())
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    No positions with CVs yet.
+                </MudText>
+            }
+            else
+            {
+                <MudList T="string" Dense="true">
+                    @foreach (var item in _popularPositions)
+                    {
+                        <MudListItem T="string" OnClick="@(() => Nav.NavigateTo($"/positions/{item.Position.Id}"))">
+                            <div class="d-flex align-center" style="width: 100%; cursor: pointer;">
+                                <div class="flex-grow-1">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>@item.Position.Title</strong>
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @item.Position.Company
+                                    </MudText>
+                                </div>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                    @item.CvCount CV(s)
+                                </MudChip>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+
+                <MudButton Href="/positions" Variant="Variant.Text" Color="Color.Primary"
+                           FullWidth="true" Class="mt-2" EndIcon="@Icons.Material.Filled.ArrowForward">
+                    View All Positions
+                </MudButton>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Tag Cloud -->
+@if (_topTags.Any())
+{
+    <MudPaper Class="pa-4" Elevation="2">
+        <div class="d-flex align-center mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Cloud" Color="Color.Tertiary" Class="mr-2" />
+            <MudText Typo="Typo.h6">Technology Tags</MudText>
+        </div>
+
+        <AuthorizeView Roles="Recruiter,Administrator">
+            <Authorized>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                    Click a tag to filter CVs
+                </MudText>
+            </Authorized>
+            <NotAuthorized>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                    Click a tag to filter positions
+                </MudText>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <div class="d-flex flex-wrap gap-2">
+            @foreach (var tag in _topTags)
+            {
+                <MudChip T="string"
+                         Size="@GetTagSize(tag.Count)"
+                         Color="@GetTagColor(tag.Count)"
+                         OnClick="@(() => HandleTagClick(tag.Tag))">
+                    @tag.Tag
+                    <MudText Typo="Typo.caption" Class="ml-1" Style="opacity: 0.7;">
+                        (@tag.Count)
+                    </MudText>
+                </MudChip>
+            }
+        </div>
+    </MudPaper>
+}
+
+@code {
+    private int _cvsLast24h, _totalPositions, _totalCandidates, _totalRecruiters;
+    private List<Position> _latestPositions = new();
+    private List<PopularPositionDto> _popularPositions = new();
+    private List<TagDto> _topTags = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStatisticsAsync();
+        await LoadLatestPositionsAsync();
+        await LoadPopularPositionsAsync();
+        await LoadTopTagsAsync();
+    }
+
+    private async Task LoadStatisticsAsync()
+    {
+        var since = DateTime.UtcNow.AddHours(-24);
+        _cvsLast24h = await Db.Cvs.CountAsync(c => c.CreatedAt >= since);
+        _totalPositions = await Db.Positions.CountAsync();
+
+        _totalCandidates = await (from u in Db.Users
+                                  join ur in Db.UserRoles on u.Id equals ur.UserId
+                                  join r in Db.Roles on ur.RoleId equals r.Id
+                                  where r.Name == "Candidate"
+                                  select u).CountAsync();
+
+        _totalRecruiters = await (from u in Db.Users
+                                  join ur in Db.UserRoles on u.Id equals ur.UserId
+                                  join r in Db.Roles on ur.RoleId equals r.Id
+                                  where r.Name == "Recruiter"
+                                  select u).CountAsync();
+    }
+
+    private async Task LoadLatestPositionsAsync()
+    {
+        _latestPositions = await Db.Positions
+            .OrderByDescending(p => p.UpdatedAt)
+            .Take(5)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    private async Task LoadPopularPositionsAsync()
+    {
+        var data = await Db.Positions
+            .Select(p => new
+            {
+                Position = p,
+                CvCount = p.Cvs.Count(c => c.Status == CvStatus.Published)
+            })
+            .Where(x => x.CvCount > 0)
+            .OrderByDescending(x => x.CvCount)
+            .Take(5)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _popularPositions = data.Select(x => new PopularPositionDto
+        {
+            Position = x.Position,
+            CvCount = x.CvCount
+        }).ToList();
+    }
+
+    private async Task LoadTopTagsAsync()
+    {
+        var tags = await Db.ProjectTags
+            .GroupBy(t => t.Tag)
+            .Select(g => new { Tag = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .Take(20)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _topTags = tags.Select(t => new TagDto
+        {
+            Tag = t.Tag,
+            Count = t.Count
+        }).ToList();
+    }
+
+    private void HandleTagClick(string tag)
+    {
+        Nav.NavigateTo($"/search?q={Uri.EscapeDataString(tag)}");
+    }
+
+    private Size GetTagSize(int count) => count switch
+    {
+        >= 10 => Size.Large,
+        >= 5 => Size.Medium,
+        _ => Size.Small
+    };
+
+    private Color GetTagColor(int count) => count switch
+    {
+        >= 10 => Color.Error,
+        >= 5 => Color.Warning,
+        >= 2 => Color.Info,
+        _ => Color.Default
+    };
+
+    private Color GetLevelColor(PositionLevel level) => level switch
+    {
+        PositionLevel.Intern => Color.Default,
+        PositionLevel.Junior => Color.Info,
+        PositionLevel.Middle => Color.Primary,
+        PositionLevel.Senior => Color.Success,
+        PositionLevel.CLevel => Color.Warning,
+        _ => Color.Default
+    };
+
+    public class PopularPositionDto
+    {
+        public Position Position { get; set; } = null!;
+        public int CvCount { get; set; }
+    }
+
+    public class TagDto
+    {
+        public string Tag { get; set; } = "";
+        public int Count { get; set; }
+    }
+}

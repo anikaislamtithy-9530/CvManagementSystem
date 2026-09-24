@@ -1,0 +1,226 @@
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Web.Components.Shared
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject IDiscussionService DiscussionService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<MudText Typo="Typo.h6" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Forum" Class="mr-2" />
+    Discussion (@_posts.Count)
+</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <!-- Post list -->
+    @if (!_posts.Any())
+    {
+        <MudPaper Class="pa-6 text-center" Elevation="0" Style="background-color: #f9f9f9;">
+            <MudIcon Icon="@Icons.Material.Filled.ChatBubbleOutline" Size="Size.Large" Color="Color.Default" />
+            <MudText Typo="Typo.body1" Class="mt-2">No discussions yet</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Be the first to start a discussion!
+            </MudText>
+        </MudPaper>
+    }
+    else
+    {
+        foreach (var post in _posts)
+        {
+            <MudPaper Class="pa-4 mb-3" Elevation="1">
+                <div class="d-flex align-center mb-2">
+                    <MudAvatar Size="Size.Small" Color="Color.Primary" Class="mr-2">
+                        @(post.Author?.FirstName?.FirstOrDefault())@(post.Author?.LastName?.FirstOrDefault())
+                    </MudAvatar>
+                    <div class="flex-grow-1">
+                        <MudText Typo="Typo.body2">
+                            <strong>@post.Author?.FirstName @post.Author?.LastName</strong>
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @post.CreatedAt.ToString("MMM d, yyyy · HH:mm")
+                        </MudText>
+                    </div>
+
+                    @if (CanEdit(post))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="@(() => EditPost(post))" />
+                    }
+                    @if (CanDelete(post))
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error"
+                                       OnClick="@(() => DeletePost(post))" />
+                    }
+                </div>
+
+                <MarkdownRenderer Content="@post.Content" />
+            </MudPaper>
+        }
+    }
+
+    <!-- New post form -->
+    @if (_currentUserId != null)
+    {
+        <MudPaper Class="pa-4 mt-4" Elevation="2">
+            <MudText Typo="Typo.body2" Class="mb-2">
+                <strong>Post a comment</strong>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary ml-2">
+                    (Markdown supported)
+                </MudText>
+            </MudText>
+
+            <MudTextField T="string"
+                          @bind-Value="_newPostContent"
+                          Placeholder="Write your comment here..."
+                          Variant="Variant.Outlined"
+                          Lines="3"
+                          MaxLength="2000"
+                          Counter="2000"
+                          Class="mb-2" />
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-2" Dense="true">@_errorMessage</MudAlert>
+            }
+
+            <div class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Send"
+                           OnClick="@((MouseEventArgs e) => PostAsync())"
+                           Disabled="_posting || string.IsNullOrWhiteSpace(_newPostContent)">
+                    @(_posting ? "Posting..." : "Post Comment")
+                </MudButton>
+            </div>
+        </MudPaper>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-4" Dense="true">
+            Please <MudLink Href="/login" Color="Color.Primary">sign in</MudLink> to post comments.
+        </MudAlert>
+    }
+}
+
+@code {
+    [Parameter] public Guid PositionId { get; set; }
+
+    private List<DiscussionPost> _posts = new();
+    private string? _currentUserId;
+    private string? _newPostContent;
+    private string? _errorMessage;
+    private bool _loading = true;
+    private bool _posting;
+    private bool _isAdmin;
+    private Timer? _refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        _isAdmin = authState.User.IsInRole("Administrator");
+
+        await LoadAsync();
+
+        // Polling every 5 seconds for new posts (real-time updates)
+        _refreshTimer = new Timer(async _ => await InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }), null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var fresh = await DiscussionService.GetPositionPostsAsync(PositionId);
+
+            // Only update if changed (avoid re-render flicker)
+            if (fresh.Count != _posts.Count || 
+                (fresh.Any() && _posts.Any() && fresh.Last().Id != _posts.Last().Id))
+            {
+                _posts = fresh;
+            }
+        }
+        catch { }
+
+        _loading = false;
+    }
+
+    private async Task PostAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newPostContent) || string.IsNullOrEmpty(_currentUserId))
+            return;
+
+        _posting = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        var (success, error, post) = await DiscussionService.CreateAsync(
+            PositionId, _currentUserId, _newPostContent);
+
+        if (success && post != null)
+        {
+            _posts.Add(post);
+            _newPostContent = null;
+            Snackbar.Add("Comment posted!", Severity.Success);
+        }
+        else
+        {
+            _errorMessage = error ?? "Failed to post.";
+            Snackbar.Add(_errorMessage, Severity.Error);
+        }
+
+        _posting = false;
+        StateHasChanged();
+    }
+
+    private bool CanEdit(DiscussionPost post)
+    {
+        return !string.IsNullOrEmpty(_currentUserId) && post.AuthorId == _currentUserId;
+    }
+
+    private bool CanDelete(DiscussionPost post)
+    {
+        if (string.IsNullOrEmpty(_currentUserId)) return false;
+        return post.AuthorId == _currentUserId || _isAdmin;
+    }
+
+    private async Task EditPost(DiscussionPost post)
+    {
+        // Simple prompt-based edit for now
+        // Can be enhanced to a full dialog
+        Snackbar.Add("Edit feature coming soon.", Severity.Info);
+    }
+
+    private async Task DeletePost(DiscussionPost post)
+    {
+        if (string.IsNullOrEmpty(_currentUserId)) return;
+
+        var (success, error) = await DiscussionService.DeleteAsync(
+            post.Id, _currentUserId, _isAdmin);
+
+        if (success)
+        {
+            _posts.Remove(post);
+            Snackbar.Add("Comment deleted.", Severity.Success);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to delete.", Severity.Error);
+        }
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}

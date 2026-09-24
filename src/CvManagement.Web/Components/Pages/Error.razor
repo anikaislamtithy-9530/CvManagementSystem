@@ -1,0 +1,66 @@
+﻿@page "/error"
+@layout MainLayout
+
+<PageTitle>Error</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="min-height: 60vh;">
+    <MudPaper Class="pa-8 text-center" Elevation="2" Style="width: 100%;">
+        <MudIcon Icon="@Icons.Material.Filled.ErrorOutline"
+                 Size="Size.Large"
+                 Color="Color.Error"
+                 Style="font-size: 5rem;" />
+
+        <MudText Typo="Typo.h2" Class="mt-4" Color="Color.Error">
+            500
+        </MudText>
+
+        <MudText Typo="Typo.h5" Class="mt-2">
+            Something Went Wrong
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="mt-3 mud-text-secondary">
+            An unexpected error occurred. Please try again later.
+        </MudText>
+
+        @if (ShowRequestId)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-4" Dense="true">
+                <MudText Typo="Typo.caption">
+                    Request ID: <code>@RequestId</code>
+                </MudText>
+            </MudAlert>
+        }
+
+        <MudDivider Class="my-6" />
+
+        <div class="d-flex gap-2 justify-center flex-wrap">
+            <MudButton OnClick="@(() => Nav.NavigateTo("/", forceLoad: true))"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Refresh">
+                Reload App
+            </MudButton>
+
+            <MudButton Href="/"
+                       Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Home">
+                Go Home
+            </MudButton>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Inject] NavigationManager Nav { get; set; } = null!;
+    [Inject] IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized()
+    {
+        RequestId = System.Diagnostics.Activity.Current?.Id
+            ?? HttpContextAccessor.HttpContext?.TraceIdentifier;
+    }
+}

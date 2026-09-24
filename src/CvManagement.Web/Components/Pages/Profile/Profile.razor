@@ -1,0 +1,457 @@
+@page "/profile"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@inject IProfileService ProfileService
+@inject IAttributeService AttributeService
+@inject UserManager<ApplicationUser> UserManager
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@inject AutoSaveService AutoSave
+@implements IDisposable
+@attribute [Authorize]
+
+<PageTitle>My Profile</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-2" />
+    My Profile
+</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_user == null)
+{
+    <MudAlert Severity="Severity.Error">User not found.</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-2 mb-4 d-flex align-center" Elevation="0" Style="background-color: #f5f5f5;">
+        <MudIcon Icon="@(_isSaving ? Icons.Material.Filled.Sync : (_hasUnsavedChanges ? Icons.Material.Filled.CloudUpload : Icons.Material.Filled.CloudDone))"
+                 Color="@(_isSaving ? Color.Info : (_hasUnsavedChanges ? Color.Warning : Color.Success))"
+                 Class="mr-2" />
+        <MudText Typo="Typo.caption">
+            @if (_isSaving)
+            {
+                <text>Saving...</text>
+            }
+            else if (_hasUnsavedChanges)
+            {
+                <text>You have unsaved changes. Auto-save in few seconds...</text>
+            }
+            else
+            {
+                <text>All changes saved · Last: @_lastSaved.ToString("HH:mm:ss")</text>
+            }
+        </MudText>
+        <MudSpacer />
+        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                   OnClick="@((MouseEventArgs e) => ForceSaveAsync())"
+                   Disabled="_isSaving || !_hasUnsavedChanges">
+            Save Now
+        </MudButton>
+    </MudPaper>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="Me" Icon="@Icons.Material.Filled.Person">
+            <MudText Typo="Typo.h6" Class="mb-4">Basic Information</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  @bind-Value="_user.FirstName"
+                                  @bind-Value:after="MarkDirty"
+                                  Label="First Name"
+                                  Variant="Variant.Outlined"
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  @bind-Value="_user.LastName"
+                                  @bind-Value:after="MarkDirty"
+                                  Label="Last Name"
+                                  Variant="Variant.Outlined"
+                                  Required="true" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  @bind-Value="_user.Location"
+                                  @bind-Value:after="MarkDirty"
+                                  Label="Location"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="City, Country" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  @bind-Value="_user.PhotoUrl"
+                                  @bind-Value:after="MarkDirty"
+                                  Label="Photo URL"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="https://..." />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  Value="@_user.Email"
+                                  Label="Email"
+                                  Variant="Variant.Outlined"
+                                  ReadOnly="true"
+                                  HelperText="Email cannot be changed" />
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Info" Icon="@Icons.Material.Filled.Info">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6">Additional Information</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@((MouseEventArgs e) => OpenAttributePicker())">
+                    Add Attribute
+                </MudButton>
+            </div>
+
+            @if (_profileAttributes.Any())
+            {
+                foreach (var attr in _profileAttributes)
+                {
+                    <MudPaper Class="pa-4 mb-3" Elevation="1">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <div>
+                                <MudText Typo="Typo.body1"><strong>@attr.AttributeName</strong></MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @attr.DataType · @attr.Category
+                                </MudText>
+                            </div>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@((MouseEventArgs e) => RemoveAttribute(attr))" />
+                        </div>
+
+                        @if (attr.DataType == AttributeDataType.Boolean)
+                        {
+                            <MudSwitch T="bool"
+                                       Value="@(attr.Value == "true")"
+                                       ValueChanged="@((bool v) => UpdateAttrValue(attr, v.ToString().ToLower()))"
+                                       Color="Color.Primary" />
+                        }
+                        else if (attr.DataType == AttributeDataType.Text)
+                        {
+                            <MudTextField T="string"
+                                          Value="@attr.Value"
+                                          ValueChanged="@((string v) => UpdateAttrValue(attr, v))"
+                                          Variant="Variant.Outlined"
+                                          Lines="4" />
+                        }
+                        else if (attr.DataType == AttributeDataType.Numeric)
+                        {
+                            <MudNumericField T="decimal?"
+                                             Value="@(decimal.TryParse(attr.Value, out var d) ? d : null)"
+                                             ValueChanged="@((decimal? v) => UpdateAttrValue(attr, v?.ToString() ?? ""))"
+                                             Variant="Variant.Outlined" />
+                        }
+                        else if (attr.DataType == AttributeDataType.OneOfMany)
+                        {
+                            var options = GetDropdownOptions(attr.DropdownOptionsJson);
+                            <MudSelect T="string"
+                                       Value="@attr.Value"
+                                       ValueChanged="@((string v) => UpdateAttrValue(attr, v))"
+                                       Variant="Variant.Outlined"
+                                       Placeholder="Select...">
+                                @foreach (var opt in options)
+                                {
+                                    <MudSelectItem T="string" Value="@opt">@opt</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudTextField T="string"
+                                          Value="@attr.Value"
+                                          ValueChanged="@((string v) => UpdateAttrValue(attr, v))"
+                                          Variant="Variant.Outlined" />
+                        }
+                    </MudPaper>
+                }
+            }
+            else
+            {
+                <MudPaper Class="pa-8 text-center" Elevation="1">
+                    <MudIcon Icon="@Icons.Material.Filled.LibraryAdd" Size="Size.Large" Color="Color.Default" />
+                    <MudText Typo="Typo.h6" Class="mt-2">No additional info yet</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        Add attributes from the library to build your profile.
+                    </MudText>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="Projects" Icon="@Icons.Material.Filled.Folder">
+            <MudText Typo="Typo.h6" Class="mb-4">My Projects</MudText>
+            <MudAlert Severity="Severity.Info" Dense="true">
+                <MudText Typo="Typo.body2">
+                    <strong>🚧 Coming Soon:</strong> Project management with Markdown, tags, and date ranges.
+                </MudText>
+            </MudAlert>
+        </MudTabPanel>
+    </MudTabs>
+}
+
+<MudDialog @bind-Visible="_pickerVisible" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Add Attribute from Library</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="string"
+                      @bind-Value="_pickerSearch"
+                      Placeholder="Search attributes..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined"
+                      Class="mb-3" />
+
+        @if (_loadingPicker)
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+        else
+        {
+            var available = _libraryAttributes
+                .Where(a => !_profileAttributes.Any(p => p.AttributeDefinitionId == a.Id))
+                .Where(a => string.IsNullOrWhiteSpace(_pickerSearch) || a.Name.ToLower().Contains(_pickerSearch.ToLower()))
+                .Take(50)
+                .ToList();
+
+            @if (!available.Any())
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary text-center">
+                    No attributes available to add.
+                </MudText>
+            }
+            else
+            {
+                foreach (var attr in available)
+                {
+                    <div class="d-flex align-center pa-2"
+                         style="cursor: pointer; border-bottom: 1px solid #eee;"
+                         @onclick="@(() => SelectAttribute(attr))">
+                        <MudIcon Icon="@Icons.Material.Filled.AddCircle"
+                                 Color="Color.Success" Size="Size.Small" Class="mr-2" />
+                        <div class="flex-grow-1">
+                            <MudText Typo="Typo.body2"><strong>@attr.Name</strong></MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                @attr.Category · @attr.DataType
+                            </MudText>
+                        </div>
+                    </div>
+                }
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _pickerVisible = false)">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private ApplicationUser? _user;
+    private List<ProfileAttributeViewModel> _profileAttributes = new();
+    private List<AttributeDefinition> _libraryAttributes = new();
+
+    private bool _loading = true;
+    private bool _isSaving;
+    private bool _hasUnsavedChanges;
+    private DateTime _lastSaved = DateTime.UtcNow;
+    private string? _userId;
+
+    private bool _pickerVisible;
+    private bool _loadingPicker = true;
+    private string? _pickerSearch;
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(_userId))
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        _user = await UserManager.FindByIdAsync(_userId);
+        await LoadProfileAsync();
+        await LoadLibraryAttributesAsync();
+
+        AutoSave.OnSaveStarted += () => InvokeAsync(() =>
+        {
+            _isSaving = true;
+            StateHasChanged();
+        });
+
+        AutoSave.OnSaveCompleted += () => InvokeAsync(() =>
+        {
+            _isSaving = false;
+            _hasUnsavedChanges = false;
+            _lastSaved = AutoSave.LastSaved;
+            StateHasChanged();
+        });
+
+        AutoSave.OnSaveFailed += (err) => InvokeAsync(() =>
+        {
+            _isSaving = false;
+            Snackbar.Add($"Save failed: {err}", Severity.Error);
+            StateHasChanged();
+        });
+
+        AutoSave.Start(SaveAllAsync, intervalSeconds: 7);
+        _loading = false;
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        var profile = await ProfileService.GetFullProfileAsync(_userId);
+        if (profile == null) return;
+
+        _profileAttributes = profile.Attributes
+            .Select(a => new ProfileAttributeViewModel
+            {
+                AttributeDefinitionId = a.AttributeDefinitionId,
+                AttributeName = a.AttributeDefinition?.Name ?? "Unknown",
+                DataType = a.AttributeDefinition?.DataType ?? AttributeDataType.String,
+                Category = a.AttributeDefinition?.Category ?? AttributeCategory.PersonalInformation,
+                DropdownOptionsJson = a.AttributeDefinition?.DropdownOptionsJson,
+                Value = a.Value,
+                Version = a.Version
+            })
+            .ToList();
+    }
+
+    private async Task LoadLibraryAttributesAsync()
+    {
+        try
+        {
+            _libraryAttributes = await AttributeService.GetAllAsync();
+        }
+        catch { }
+        finally { _loadingPicker = false; }
+    }
+
+    private void MarkDirty()
+    {
+        _hasUnsavedChanges = true;
+        AutoSave.MarkDirty();
+    }
+
+    private void UpdateAttrValue(ProfileAttributeViewModel attr, string? value)
+    {
+        attr.Value = value;
+        MarkDirty();
+    }
+
+    private void OpenAttributePicker()
+    {
+        _pickerVisible = true;
+        _pickerSearch = null;
+    }
+
+    private async Task SelectAttribute(AttributeDefinition attr)
+    {
+        _pickerVisible = false;
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        var (success, error) = await ProfileService.AddAttributeAsync(_userId, attr.Id);
+
+        if (success)
+        {
+            _profileAttributes.Add(new ProfileAttributeViewModel
+            {
+                AttributeDefinitionId = attr.Id,
+                AttributeName = attr.Name,
+                DataType = attr.DataType,
+                Category = attr.Category,
+                DropdownOptionsJson = attr.DropdownOptionsJson,
+                Value = null,
+                Version = 0
+            });
+            Snackbar.Add($"Added '{attr.Name}'", Severity.Success);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to add", Severity.Error);
+        }
+    }
+
+    private async Task RemoveAttribute(ProfileAttributeViewModel attr)
+    {
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        var (success, error) = await ProfileService.RemoveAttributeAsync(_userId, attr.AttributeDefinitionId);
+
+        if (success)
+        {
+            _profileAttributes.Remove(attr);
+            Snackbar.Add($"Removed '{attr.AttributeName}'", Severity.Info);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to remove", Severity.Error);
+        }
+    }
+
+    private async Task SaveAllAsync()
+    {
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        if (_user != null)
+        {
+            await UserManager.UpdateAsync(_user);
+        }
+
+        foreach (var attr in _profileAttributes)
+        {
+            await ProfileService.SaveAttributeAsync(_userId, attr.AttributeDefinitionId, attr.Value, attr.Version);
+        }
+    }
+
+    private async Task ForceSaveAsync()
+    {
+        await AutoSave.ForceSaveAsync();
+    }
+
+    private List<string> GetDropdownOptions(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return new();
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new();
+        }
+        catch { return new(); }
+    }
+
+    public void Dispose()
+    {
+        AutoSave.Stop();
+    }
+
+    public class ProfileAttributeViewModel
+    {
+        public Guid AttributeDefinitionId { get; set; }
+        public string AttributeName { get; set; } = "";
+        public AttributeDataType DataType { get; set; }
+        public AttributeCategory Category { get; set; }
+        public string? DropdownOptionsJson { get; set; }
+        public string? Value { get; set; }
+        public uint Version { get; set; }
+    }
+}

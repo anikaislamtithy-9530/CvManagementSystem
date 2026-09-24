@@ -1,0 +1,271 @@
+@page "/cvs/create"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@using Position = CvManagement.Domain.Entities.Position
+@inject IPositionService PositionService
+@inject ICvService CvService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "Candidate,Administrator")]
+
+<PageTitle>Create CV</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+<MudText Typo="Typo.h4" Class="mb-4">Create New CV</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+        Select a position to create a tailored CV. Your profile data will be auto-filled.
+    </MudText>
+
+    <MudTextField T="string"
+                  @bind-Value="_searchTerm"
+                  Placeholder="Search positions..."
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined"
+                  Margin="Margin.Dense"
+                  Immediate="true" />
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    var accessible = _filteredPositions.Where(p => _accessibleIds.Contains(p.Id)).ToList();
+    var inaccessible = _filteredPositions.Where(p => !_accessibleIds.Contains(p.Id)).ToList();
+
+    @if (!accessible.Any() && !inaccessible.Any())
+    {
+        <MudPaper Class="pa-8 text-center" Elevation="1">
+            <MudText Typo="Typo.h6">No positions available</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        @if (accessible.Any())
+        {
+            <MudText Typo="Typo.h6" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Class="mr-2" />
+                Available Positions (@accessible.Count)
+            </MudText>
+
+            <MudGrid Class="mb-6">
+                @foreach (var pos in accessible)
+                {
+                    var hasCv = _existingCvPositionIds.Contains(pos.Id);
+                    <MudItem xs="12" md="6" lg="4">
+                        <MudCard Elevation="2" Class="h-100">
+                            <MudCardContent>
+                                <div class="d-flex justify-space-between align-start">
+                                    <MudText Typo="Typo.h6">@pos.Title</MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="@GetLevelColor(pos.Level)">
+                                        @pos.Level
+                                    </MudChip>
+                                </div>
+                                @if (!string.IsNullOrEmpty(pos.Company))
+                                {
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" />
+                                        @pos.Company
+                                    </MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(pos.ShortDescription))
+                                {
+                                    <MudText Typo="Typo.body2" Class="mt-2">
+                                        @(pos.ShortDescription.Length > 100
+                                            ? pos.ShortDescription.Substring(0, 100) + "..."
+                                            : pos.ShortDescription)
+                                    </MudText>
+                                }
+                                <div class="d-flex gap-1 mt-3 flex-wrap">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                        @pos.Attributes.Count attributes
+                                    </MudChip>
+                                    @if (pos.IsPublic)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success">
+                                            Public
+                                        </MudChip>
+                                    }
+                                </div>
+                            </MudCardContent>
+                            <MudCardActions>
+                                @if (hasCv)
+                                {
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Success"
+                                               FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Check"
+                                               Disabled="true">
+                                        CV Already Created
+                                    </MudButton>
+                                }
+                                else
+                                {
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Add"
+                                               OnClick="@((MouseEventArgs e) => CreateCvForPosition(pos.Id))"
+                                               Disabled="_creating">
+                                        Create CV
+                                    </MudButton>
+                                }
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+
+        @if (inaccessible.Any())
+        {
+            <MudText Typo="Typo.h6" Class="mb-3 mt-6">
+                <MudIcon Icon="@Icons.Material.Filled.Lock" Color="Color.Warning" Class="mr-2" />
+                Restricted Positions (@inaccessible.Count)
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">
+                These positions have access rules you don't currently meet.
+            </MudText>
+
+            <MudGrid>
+                @foreach (var pos in inaccessible)
+                {
+                    <MudItem xs="12" md="6" lg="4">
+                        <MudCard Elevation="1" Class="h-100" Style="opacity: 0.6;">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6">@pos.Title</MudText>
+                                @if (!string.IsNullOrEmpty(pos.Company))
+                                {
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                                        @pos.Company
+                                    </MudText>
+                                }
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Default"
+                                           FullWidth="true"
+                                           StartIcon="@Icons.Material.Filled.Lock"
+                                           Disabled="true">
+                                    Access Restricted
+                                </MudButton>
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    }
+}
+
+@code {
+    private List<Position> _positions = new();
+    private HashSet<Guid> _accessibleIds = new();
+    private HashSet<Guid> _existingCvPositionIds = new();
+    private string? _searchTerm;
+    private string? _userId;
+    private bool _loading = true;
+    private bool _creating;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("My CVs", "/cvs"),
+        new BreadcrumbItem("Create", "/cvs/create", disabled: true)
+    };
+
+    private List<Position> _filteredPositions =>
+        string.IsNullOrWhiteSpace(_searchTerm)
+            ? _positions
+            : _positions.Where(p =>
+                p.Title.ToLower().Contains(_searchTerm.ToLower()) ||
+                (p.Company?.ToLower().Contains(_searchTerm.ToLower()) ?? false))
+              .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(_userId))
+            {
+                Nav.NavigateTo("/login");
+                return;
+            }
+
+            // Load all positions
+            _positions = await PositionService.GetAllAsync();
+
+            // Check access for each
+            foreach (var pos in _positions)
+            {
+                if (await CvService.CanAccessPositionAsync(pos.Id, _userId))
+                {
+                    _accessibleIds.Add(pos.Id);
+                }
+            }
+
+            // Check existing CVs
+            var myCvs = await CvService.GetMyCvsAsync(_userId);
+            _existingCvPositionIds = myCvs.Select(c => c.PositionId).ToHashSet();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task CreateCvForPosition(Guid positionId)
+    {
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        _creating = true;
+        StateHasChanged();
+
+        try
+        {
+            var (success, error, cv) = await CvService.CreateAsync(positionId, _userId);
+
+            if (success && cv != null)
+            {
+                Snackbar.Add("CV created! Fill in the details.", Severity.Success);
+                Nav.NavigateTo($"/cvs/{cv.Id}/edit");
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to create CV.", Severity.Error);
+                _creating = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            _creating = false;
+            StateHasChanged();
+        }
+    }
+
+    private Color GetLevelColor(PositionLevel level) => level switch
+    {
+        PositionLevel.Intern => Color.Default,
+        PositionLevel.Junior => Color.Info,
+        PositionLevel.Middle => Color.Primary,
+        PositionLevel.Senior => Color.Success,
+        PositionLevel.CLevel => Color.Warning,
+        _ => Color.Default
+    };
+}

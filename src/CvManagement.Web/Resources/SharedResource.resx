@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Nav_Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Nav_Positions" xml:space="preserve">
+    <value>Positions</value>
+  </data>
+  <data name="Nav_AttributeLibrary" xml:space="preserve">
+    <value>Attribute Library</value>
+  </data>
+  <data name="Nav_AllCvs" xml:space="preserve">
+    <value>All CVs</value>
+  </data>
+  <data name="Nav_MyCvs" xml:space="preserve">
+    <value>My CVs</value>
+  </data>
+  <data name="Nav_MyProfile" xml:space="preserve">
+    <value>My Profile</value>
+  </data>
+  <data name="Nav_Users" xml:space="preserve">
+    <value>Users</value>
+  </data>
+
+  <data name="Action_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Action_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Action_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Action_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Action_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Action_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="Action_Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Action_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="Action_SignIn" xml:space="preserve">
+    <value>Sign In</value>
+  </data>
+  <data name="Action_SignOut" xml:space="preserve">
+    <value>Sign Out</value>
+  </data>
+  <data name="Action_Register" xml:space="preserve">
+    <value>Register</value>
+  </data>
+  <data name="Action_Logout" xml:space="preserve">
+    <value>Logout</value>
+  </data>
+
+  <data name="Home_Welcome" xml:space="preserve">
+    <value>Welcome to CV Management System</value>
+  </data>
+  <data name="Home_Cvs24h" xml:space="preserve">
+    <value>CVs (24h)</value>
+  </data>
+  <data name="Home_Positions" xml:space="preserve">
+    <value>Positions</value>
+  </data>
+  <data name="Home_Candidates" xml:space="preserve">
+    <value>Candidates</value>
+  </data>
+  <data name="Home_Recruiters" xml:space="preserve">
+    <value>Recruiters</value>
+  </data>
+  <data name="Home_Hello" xml:space="preserve">
+    <value>Hello</value>
+  </data>
+  <data name="Home_SignedIn" xml:space="preserve">
+    <value>You are signed in. Explore positions or manage your profile.</value>
+  </data>
+  <data name="Home_WelcomeGuest" xml:space="preserve">
+    <value>Welcome, Guest!</value>
+  </data>
+  <data name="Home_SignInPrompt" xml:space="preserve">
+    <value>Sign in to access all features, or browse positions as a guest.</value>
+  </data>
+
+  <data name="Auth_SignIn" xml:space="preserve">
+    <value>Sign In</value>
+  </data>
+  <data name="Auth_Register" xml:space="preserve">
+    <value>Register</value>
+  </data>
+  <data name="Auth_Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="Auth_Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Auth_FirstName" xml:space="preserve">
+    <value>First Name</value>
+  </data>
+  <data name="Auth_LastName" xml:space="preserve">
+    <value>Last Name</value>
+  </data>
+  <data name="Auth_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Auth_SignInTitle" xml:space="preserve">
+    <value>Sign in to your account</value>
+  </data>
+  <data name="Auth_CreateAccount" xml:space="preserve">
+    <value>Create Account</value>
+  </data>
+
+  <data name="Positions_Title" xml:space="preserve">
+    <value>Positions</value>
+  </data>
+  <data name="Positions_CreateNew" xml:space="preserve">
+    <value>Create Position</value>
+  </data>
+  <data name="Positions_SearchPlaceholder" xml:space="preserve">
+    <value>Search positions...</value>
+  </data>
+  <data name="Positions_Level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="Positions_NoPositions" xml:space="preserve">
+    <value>No positions yet</value>
+  </data>
+
+  <data name="Cvs_MyCvs" xml:space="preserve">
+    <value>My CVs</value>
+  </data>
+  <data name="Cvs_AllCvs" xml:space="preserve">
+    <value>All CVs</value>
+  </data>
+  <data name="Cvs_CreateNew" xml:space="preserve">
+    <value>Create New CV</value>
+  </data>
+  <data name="Cvs_Published" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="Cvs_Draft" xml:space="preserve">
+    <value>Draft</value>
+  </data>
+  <data name="Cvs_Publish" xml:space="preserve">
+    <value>Publish CV</value>
+  </data>
+  <data name="Cvs_Unpublish" xml:space="preserve">
+    <value>Unpublish</value>
+  </data>
+  <data name="Cvs_Likes" xml:space="preserve">
+    <value>Likes</value>
+  </data>
+
+  <data name="Profile_Title" xml:space="preserve">
+    <value>My Profile</value>
+  </data>
+  <data name="Profile_Me" xml:space="preserve">
+    <value>Me</value>
+  </data>
+  <data name="Profile_Info" xml:space="preserve">
+    <value>Info</value>
+  </data>
+  <data name="Profile_Projects" xml:space="preserve">
+    <value>Projects</value>
+  </data>
+  <data name="Profile_BasicInfo" xml:space="preserve">
+    <value>Basic Information</value>
+  </data>
+  <data name="Profile_AdditionalInfo" xml:space="preserve">
+    <value>Additional Information</value>
+  </data>
+  <data name="Profile_AllChangesSaved" xml:space="preserve">
+    <value>All changes saved</value>
+  </data>
+  <data name="Profile_Saving" xml:space="preserve">
+    <value>Saving...</value>
+  </data>
+  <data name="Profile_HasUnsaved" xml:space="preserve">
+    <value>You have unsaved changes. Auto-save in few seconds...</value>
+  </data>
+  <data name="Profile_SaveNow" xml:space="preserve">
+    <value>Save Now</value>
+  </data>
+  <data name="Profile_AddAttribute" xml:space="preserve">
+    <value>Add Attribute</value>
+  </data>
+
+  <data name="Discussion_Title" xml:space="preserve">
+    <value>Discussion</value>
+  </data>
+  <data name="Discussion_NoDiscussions" xml:space="preserve">
+    <value>No discussions yet</value>
+  </data>
+  <data name="Discussion_PostComment" xml:space="preserve">
+    <value>Post Comment</value>
+  </data>
+  <data name="Discussion_BeFirst" xml:space="preserve">
+    <value>Be the first to start a discussion!</value>
+  </data>
+
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>Search...</value>
+  </data>
+  <data name="Search_NoResults" xml:space="preserve">
+    <value>No results found</value>
+  </data>
+
+  <data name="Role_Administrator" xml:space="preserve">
+    <value>Administrator</value>
+  </data>
+  <data name="Role_Recruiter" xml:space="preserve">
+    <value>Recruiter</value>
+  </data>
+  <data name="Role_Candidate" xml:space="preserve">
+    <value>Candidate</value>
+  </data>
+</root>

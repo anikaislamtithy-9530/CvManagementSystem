@@ -1,0 +1,44 @@
+﻿<MudNavMenu Class="mt-2">
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+        Home
+    </MudNavLink>
+    <MudNavLink Href="/positions" Icon="@Icons.Material.Filled.Work">
+        Positions
+    </MudNavLink>
+
+    <AuthorizeView Roles="Candidate">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.caption" Class="px-4 py-2">CANDIDATE</MudText>
+            <MudNavLink Href="/cvs" Icon="@Icons.Material.Filled.Description">
+                My CVs
+            </MudNavLink>
+            <MudNavLink Href="/profile" Icon="@Icons.Material.Filled.Person">
+                My Profile
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="Recruiter,Administrator">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.caption" Class="px-4 py-2">RECRUITER</MudText>
+            <MudNavLink Href="/attributes" Icon="@Icons.Material.Filled.LibraryBooks">
+                Attribute Library
+            </MudNavLink>
+            <MudNavLink Href="/recruiter/cvs" Icon="@Icons.Material.Filled.FolderShared">
+                All CVs
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <AuthorizeView Roles="Administrator">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.caption" Class="px-4 py-2">ADMIN</MudText>
+            <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.ManageAccounts">
+                Users
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+</MudNavMenu>

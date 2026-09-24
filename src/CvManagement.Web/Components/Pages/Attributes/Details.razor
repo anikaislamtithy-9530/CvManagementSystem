@@ -1,0 +1,283 @@
+@page "/attributes/{Id:guid}"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Domain.Enums
+@using CvManagement.Web.Components.Dialogs
+@using Microsoft.AspNetCore.Authorization
+@inject IAttributeService AttributeService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "Recruiter,Administrator")]
+
+<PageTitle>@(_attribute?.Name ?? "Attribute") - Details</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_attribute == null)
+{
+    <MudAlert Severity="Severity.Error">Attribute not found.</MudAlert>
+    <MudButton Href="/attributes" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Back to List
+    </MudButton>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-6" Elevation="2">
+                <div class="d-flex justify-space-between align-center mb-4">
+                    <MudText Typo="Typo.h4">@_attribute.Name</MudText>
+                    @if (_attribute.IsBuiltIn)
+                    {
+                        <MudChip T="string" Color="Color.Warning" Icon="@Icons.Material.Filled.Lock">
+                            Built-in
+                        </MudChip>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_attribute.Description))
+                {
+                    <MudText Typo="Typo.body1" Class="mb-4">@_attribute.Description</MudText>
+                }
+
+                <MudDivider Class="my-4" />
+
+                <MudGrid>
+                    <MudItem xs="6" md="4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Category</MudText>
+                        <MudChip T="string" Color="@GetCategoryColor(_attribute.Category)">
+                            @_attribute.Category
+                        </MudChip>
+                    </MudItem>
+
+                    <MudItem xs="6" md="4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Data Type</MudText>
+                        <MudText Typo="Typo.body1">@_attribute.DataType</MudText>
+                    </MudItem>
+
+                    <MudItem xs="6" md="4">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Updated</MudText>
+                        <MudText Typo="Typo.body1">@_attribute.UpdatedAt.ToString("g")</MudText>
+                    </MudItem>
+
+                    @if (_attribute.DataType == AttributeDataType.Numeric)
+                    {
+                        @if (_attribute.MinValue.HasValue)
+                        {
+                            <MudItem xs="6" md="4">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Min Value</MudText>
+                                <MudText Typo="Typo.body1">@_attribute.MinValue</MudText>
+                            </MudItem>
+                        }
+                        @if (_attribute.MaxValue.HasValue)
+                        {
+                            <MudItem xs="6" md="4">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Max Value</MudText>
+                                <MudText Typo="Typo.body1">@_attribute.MaxValue</MudText>
+                            </MudItem>
+                        }
+                        @if (!string.IsNullOrEmpty(_attribute.Unit))
+                        {
+                            <MudItem xs="6" md="4">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Unit</MudText>
+                                <MudText Typo="Typo.body1">@_attribute.Unit</MudText>
+                            </MudItem>
+                        }
+                    }
+
+                    @if (_attribute.DataType == AttributeDataType.String ||
+                         _attribute.DataType == AttributeDataType.Text)
+                    {
+                        @if (_attribute.MinLength.HasValue)
+                        {
+                            <MudItem xs="6" md="4">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Min Length</MudText>
+                                <MudText Typo="Typo.body1">@_attribute.MinLength</MudText>
+                            </MudItem>
+                        }
+                        @if (_attribute.MaxLength.HasValue)
+                        {
+                            <MudItem xs="6" md="4">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Max Length</MudText>
+                                <MudText Typo="Typo.body1">@_attribute.MaxLength</MudText>
+                            </MudItem>
+                        }
+                        @if (!string.IsNullOrEmpty(_attribute.RegexPattern))
+                        {
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Regex Pattern</MudText>
+                                <MudText Typo="Typo.body2" Style="font-family: monospace;">
+                                    @_attribute.RegexPattern
+                                </MudText>
+                            </MudItem>
+                        }
+                    }
+
+                    @if (_attribute.DataType == AttributeDataType.OneOfMany &&
+                         !string.IsNullOrEmpty(_attribute.DropdownOptionsJson))
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Options</MudText>
+                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                @foreach (var option in GetDropdownOptions(_attribute.DropdownOptionsJson))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">@option</MudChip>
+                                }
+                            </div>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-6 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Usage</MudText>
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.body2">Positions</MudText>
+                    <MudText Typo="Typo.h6" Color="Color.Primary">@_positionCount</MudText>
+                </div>
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.body2">CVs</MudText>
+                    <MudText Typo="Typo.h6" Color="Color.Primary">@_cvCount</MudText>
+                </div>
+            </MudPaper>
+
+            <MudPaper Class="pa-6" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Actions</MudText>
+
+                <MudButton Href="@($"/attributes/{_attribute.Id}/edit")"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           Class="mb-2">
+                    Edit Attribute
+                </MudButton>
+
+                @if (!_attribute.IsBuiltIn)
+                {
+                    <MudButton OnClick="@((MouseEventArgs e) => DeleteAsync())"
+                               Variant="Variant.Filled"
+                               Color="Color.Error"
+                               FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Delete">
+                        Delete Attribute
+                    </MudButton>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Built-in attributes cannot be deleted.
+                    </MudAlert>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private AttributeDefinition? _attribute;
+    private bool _loading = true;
+    private int _positionCount;
+    private int _cvCount;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("Attributes", "/attributes"),
+        new BreadcrumbItem("Details", "/attributes", disabled: true)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _attribute = await AttributeService.GetByIdAsync(Id);
+
+            if (_attribute != null)
+            {
+                var (posCount, cvCount) = await AttributeService.GetUsageStatsAsync(Id);
+                _positionCount = posCount;
+                _cvCount = cvCount;
+
+                _breadcrumbs = new List<BreadcrumbItem>
+                {
+                    new BreadcrumbItem("Home", "/"),
+                    new BreadcrumbItem("Attributes", "/attributes"),
+                    new BreadcrumbItem(_attribute.Name, "/attributes/" + Id, disabled: true)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_attribute == null) return;
+
+        var parameters = new DialogParameters
+        {
+            { nameof(ConfirmDeleteDialog.AttributeName), _attribute.Name }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>("Delete Attribute", parameters);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            var (success, error) = await AttributeService.DeleteAsync(_attribute.Id, "system");
+
+            if (success)
+            {
+                Snackbar.Add($"Attribute '{_attribute.Name}' deleted.", Severity.Success);
+                Nav.NavigateTo("/attributes");
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to delete.", Severity.Error);
+            }
+        }
+    }
+
+    private List<string> GetDropdownOptions(string json)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json) ?? new();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    private Color GetCategoryColor(AttributeCategory category) => category switch
+    {
+        AttributeCategory.PersonalInformation => Color.Primary,
+        AttributeCategory.Certification => Color.Success,
+        AttributeCategory.DomainKnowledge => Color.Info,
+        AttributeCategory.SoftSkills => Color.Secondary,
+        AttributeCategory.Education => Color.Warning,
+        AttributeCategory.Experience => Color.Tertiary,
+        AttributeCategory.Language => Color.Dark,
+        AttributeCategory.Technical => Color.Primary,
+        _ => Color.Default
+    };
+}

@@ -1,0 +1,43 @@
+﻿@page "/not-found"
+@layout MainLayout
+
+<PageTitle>Page Not Found</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center" Style="min-height: 60vh;">
+    <MudPaper Class="pa-8 text-center" Elevation="2" Style="width: 100%;">
+        <MudIcon Icon="@Icons.Material.Filled.SearchOff"
+                 Size="Size.Large"
+                 Color="Color.Warning"
+                 Style="font-size: 5rem;" />
+
+        <MudText Typo="Typo.h2" Class="mt-4" Color="Color.Warning">
+            404
+        </MudText>
+
+        <MudText Typo="Typo.h5" Class="mt-2">
+            Page Not Found
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="mt-3 mud-text-secondary">
+            The page you're looking for doesn't exist or has been moved.
+        </MudText>
+
+        <MudDivider Class="my-6" />
+
+        <div class="d-flex gap-2 justify-center flex-wrap">
+            <MudButton Href="/"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Home">
+                Go Home
+            </MudButton>
+
+            <MudButton Href="/positions"
+                       Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Work">
+                Browse Positions
+            </MudButton>
+        </div>
+    </MudPaper>
+</MudContainer>

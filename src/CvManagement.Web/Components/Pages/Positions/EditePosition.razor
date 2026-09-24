@@ -1,0 +1,282 @@
+@page "/positions/{Id:guid}/edit"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject IPositionService PositionService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "Recruiter,Administrator")]
+
+<PageTitle>Edit Position</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_model == null)
+{
+    <MudAlert Severity="Severity.Error">Position not found.</MudAlert>
+    <MudButton Href="/positions" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Back to List
+    </MudButton>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">Edit: @_model.Title</MudText>
+
+    <MudPaper Class="pa-6" Elevation="2" Style="max-width: 1200px;">
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Class="mr-2" />
+            Basic Information
+        </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudTextField T="string"
+                              @bind-Value="_model.Title"
+                              Label="Position Title"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              MaxLength="200" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="PositionLevel"
+                           @bind-Value="_model.Level"
+                           Label="Level"
+                           Variant="Variant.Outlined"
+                           Required="true">
+                    @foreach (var lvl in Enum.GetValues<PositionLevel>())
+                    {
+                        <MudSelectItem T="PositionLevel" Value="@lvl">@lvl</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              @bind-Value="_model.Company"
+                              Label="Company"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField T="string"
+                              @bind-Value="_model.Location"
+                              Label="Location"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              @bind-Value="_model.ShortDescription"
+                              Label="Short Description"
+                              Variant="Variant.Outlined"
+                              Lines="3"
+                              MaxLength="1000" />
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-6" />
+
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-2" />
+            Access Rules
+        </MudText>
+
+        <MudSwitch T="bool"
+                   @bind-Value="_model.IsPublic"
+                   Label="Public (accessible to all authenticated users)"
+                   Color="Color.Primary" />
+
+        @if (!_model.IsPublic)
+        {
+            <MudTextField T="string"
+                          @bind-Value="_model.AccessRulesJson"
+                          Label="Access Rules (JSON)"
+                          Variant="Variant.Outlined"
+                          Lines="4"
+                          Class="mt-3" />
+        }
+
+        <MudDivider Class="my-6" />
+
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" />
+            CV Template Attributes
+        </MudText>
+
+        <AttributePicker SelectedAttributes="_selectedAttributes"
+                         OnChange="OnAttributesChanged" />
+
+        <MudDivider Class="my-6" />
+
+        <MudText Typo="Typo.h6" Class="mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mr-2" />
+            Projects Filter
+        </MudText>
+
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudTextField T="string"
+                              @bind-Value="_model.ProjectTagsFilter"
+                              Label="Project Tags Filter"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField T="int"
+                                 @bind-Value="_model.MaxProjects"
+                                 Label="Max Projects"
+                                 Variant="Variant.Outlined"
+                                 Min="1"
+                                 Max="20" />
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-6" />
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@_errorMessage</MudAlert>
+        }
+
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="@((MouseEventArgs e) => SaveAsync())"
+                       Disabled="_saving">
+                @if (_saving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ml-2">Saving...</MudText>
+                }
+                else
+                {
+                    <MudText>Save Changes</MudText>
+                }
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Cancel"
+                       Href="@($"/positions/{Id}")">
+                Cancel
+            </MudButton>
+        </div>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private CvManagement.Domain.Entities.Position? _model;
+    private List<AttributePicker.PositionAttributeItem> _selectedAttributes = new();
+    private string? _errorMessage;
+    private bool _loading = true;
+    private bool _saving;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("Positions", "/positions"),
+        new BreadcrumbItem("Edit", "/positions", disabled: true)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var position = await PositionService.GetByIdWithAttributesAsync(Id);
+
+            if (position != null)
+            {
+                _model = position;
+
+                _selectedAttributes = position.Attributes
+                    .OrderBy(pa => pa.DisplayOrder)
+                    .Select(pa => new AttributePicker.PositionAttributeItem
+                    {
+                        AttributeDefinitionId = pa.AttributeDefinitionId,
+                        AttributeName = pa.AttributeDefinition?.Name ?? "Unknown",
+                        DataType = pa.AttributeDefinition?.DataType ?? AttributeDataType.String,
+                        DisplayOrder = pa.DisplayOrder
+                    })
+                    .ToList();
+
+                _breadcrumbs = new List<BreadcrumbItem>
+                {
+                    new BreadcrumbItem("Home", "/"),
+                    new BreadcrumbItem("Positions", "/positions"),
+                    new BreadcrumbItem(position.Title, $"/positions/{Id}"),
+                    new BreadcrumbItem("Edit", $"/positions/{Id}/edit", disabled: true)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void OnAttributesChanged() => StateHasChanged();
+
+    private async Task SaveAsync()
+    {
+        if (_model == null) return;
+
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Title))
+        {
+            _errorMessage = "Title is required.";
+            return;
+        }
+
+        if (!_selectedAttributes.Any())
+        {
+            _errorMessage = "At least one attribute must be selected.";
+            return;
+        }
+
+        _saving = true;
+        StateHasChanged();
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "system";
+
+            var attributeIds = _selectedAttributes
+                .OrderBy(a => a.DisplayOrder)
+                .Select(a => a.AttributeDefinitionId)
+                .ToList();
+
+            var (success, error) = await PositionService.UpdateAsync(_model, attributeIds, userId);
+
+            if (success)
+            {
+                Snackbar.Add("Position updated!", Severity.Success);
+                Nav.NavigateTo($"/positions/{_model.Id}");
+            }
+            else
+            {
+                _errorMessage = error ?? "Failed to update.";
+                _saving = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+}

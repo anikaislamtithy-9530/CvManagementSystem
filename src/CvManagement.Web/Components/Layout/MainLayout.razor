@@ -1,0 +1,141 @@
+﻿@inherits LayoutComponentBase
+@using CvManagement.Web.Services
+@inject LayoutService LayoutService
+@inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<MudThemeProvider IsDarkMode="@LayoutService.IsDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Primary">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                       Edge="Edge.Start" OnClick="@ToggleDrawer" />
+
+        <MudText Typo="Typo.h6" Class="ml-2" Style="cursor: pointer;"
+                 @onclick="@(() => Nav.NavigateTo("/"))">
+            CV Management
+        </MudText>
+
+        <MudSpacer />
+
+        <MudTextField T="string"
+                      @bind-Value="_searchQuery"
+                      Placeholder="Search..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Class="mr-4"
+                      Style="max-width: 300px; background-color: white; border-radius: 4px;"
+                      OnKeyUp="@HandleSearchKey" />
+
+        <!-- Language Switcher -->
+        <MudMenu Icon="@Icons.Material.Filled.Language" Color="Color.Inherit">
+            <MudMenuItem OnClick="@(() => SetLanguage("en"))">
+                <span>🇬🇧 English</span>
+            </MudMenuItem>
+            <MudMenuItem OnClick="@(() => SetLanguage("bn"))">
+                <span>🇧🇩 বাংলা</span>
+            </MudMenuItem>
+        </MudMenu>
+
+        <!-- Theme Toggle -->
+        <MudIconButton Icon="@(LayoutService.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                       Color="Color.Inherit"
+                       OnClick="ToggleTheme" />
+
+        <!-- User Menu -->
+        <AuthorizeView>
+            <Authorized>
+                <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit">
+                    <MudText Typo="Typo.body2" Class="px-4 py-2">
+                        <strong>@context.User.Identity?.Name</strong>
+                    </MudText>
+                    <MudDivider />
+                    <MudMenuItem Href="/profile" Icon="@Icons.Material.Filled.Person">
+                        My Profile
+                    </MudMenuItem>
+                    <MudMenuItem Href="/cvs" Icon="@Icons.Material.Filled.Description">
+                        My CVs
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem OnClick="TriggerLogout" Icon="@Icons.Material.Filled.Logout">
+                        Logout
+                    </MudMenuItem>
+                </MudMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="/login" Variant="Variant.Filled" Color="Color.Secondary">
+                    Sign In
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@* Hidden logout form *@
+<form id="logout-form" method="post" action="/api/auth/logout" style="display:none;">
+    <AntiforgeryToken />
+</form>
+
+@code {
+    private bool _drawerOpen = true;
+    private string _searchQuery = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LayoutService.InitializeAsync();
+        LayoutService.OnChange += OnLayoutChange;
+    }
+
+    private void OnLayoutChange() => InvokeAsync(StateHasChanged);
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private async Task ToggleTheme() => await LayoutService.ToggleDarkModeAsync();
+
+    private void SetLanguage(string lang)
+    {
+        // Simple language switch - reload page
+        Nav.NavigateTo($"/?lang={lang}", forceLoad: true);
+    }
+
+    private void HandleSearchKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            Nav.NavigateTo($"/search?q={Uri.EscapeDataString(_searchQuery)}");
+        }
+    }
+
+    private async Task TriggerLogout()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval",
+                "document.getElementById('logout-form').submit();");
+        }
+        catch
+        {
+            Nav.NavigateTo("/api/auth/logout-get", forceLoad: true);
+        }
+    }
+
+    public void Dispose()
+    {
+        LayoutService.OnChange -= OnLayoutChange;
+    }
+}

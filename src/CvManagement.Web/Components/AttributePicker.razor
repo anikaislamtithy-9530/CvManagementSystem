@@ -1,0 +1,193 @@
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Domain.Enums
+@inject IAttributeService AttributeService
+
+<MudPaper Class="pa-4" Elevation="1">
+    <MudText Typo="Typo.h6" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" />
+        Position Attributes (@SelectedAttributes.Count selected)
+    </MudText>
+
+    <MudGrid Class="mb-3">
+        <MudItem xs="12" md="8">
+            <MudTextField T="string"
+                          @bind-Value="_searchTerm"
+                          Placeholder="Search attributes to add..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true" />
+        </MudItem>
+        <MudItem xs="12" md="4">
+            <MudSelect T="AttributeCategory?"
+                       @bind-Value="_filterCategory"
+                       Label="Category"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true">
+                @foreach (var cat in Enum.GetValues<AttributeCategory>())
+                {
+                    <MudSelectItem T="AttributeCategory?" Value="@cat">@cat</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+        AVAILABLE (@_filteredAvailable.Count)
+    </MudText>
+
+    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px;" class="mb-4">
+        @if (!_filteredAvailable.Any())
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary pa-2">
+                No attributes available to add.
+            </MudText>
+        }
+        else
+        {
+            @foreach (var attr in _filteredAvailable)
+            {
+                <div class="d-flex align-center pa-2" style="cursor: pointer;"
+                     @onclick="@(() => AddAttribute(attr))">
+                    <MudIcon Icon="@Icons.Material.Filled.AddCircle" Color="Color.Success" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2" Class="flex-grow-1">@attr.Name</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@attr.DataType</MudChip>
+                </div>
+            }
+        }
+    </div>
+
+    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+        SELECTED (order matters)
+    </MudText>
+
+    @if (!SelectedAttributes.Any())
+    {
+        <MudAlert Severity="Severity.Info" Dense="true">
+            No attributes selected yet. Add from above.
+        </MudAlert>
+    }
+    else
+    {
+        @foreach (var attr in SelectedAttributes.OrderBy(a => a.DisplayOrder).ToList())
+        {
+            <MudPaper Class="pa-2 mb-1 d-flex align-center" Elevation="0"
+                      Style="background-color: #f5f5f5;">
+                <MudIcon Icon="@Icons.Material.Filled.DragIndicator" Color="Color.Default" Size="Size.Small" Class="mr-2" />
+
+                <MudText Typo="Typo.body2" Class="flex-grow-1">
+                    <strong>@attr.AttributeName</strong>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="display: inline; margin-left: 8px;">
+                        (@attr.DataType)
+                    </MudText>
+                </MudText>
+
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small"
+                               Disabled="@(attr.DisplayOrder == 0)"
+                               OnClick="@(() => MoveUp(attr))" />
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small"
+                               Disabled="@(attr.DisplayOrder == SelectedAttributes.Count - 1)"
+                               OnClick="@(() => MoveDown(attr))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                               Color="Color.Error"
+                               OnClick="@(() => RemoveAttribute(attr))" />
+            </MudPaper>
+        }
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public List<PositionAttributeItem> SelectedAttributes { get; set; } = new();
+    [Parameter] public EventCallback OnChange { get; set; }
+
+    private List<AttributeDefinition> _allAttributes = new();
+    private string? _searchTerm;
+    private AttributeCategory? _filterCategory;
+
+    private List<AttributeDefinition> _filteredAvailable =>
+        _allAttributes
+            .Where(a => !SelectedAttributes.Any(s => s.AttributeDefinitionId == a.Id))
+            .Where(a => string.IsNullOrWhiteSpace(_searchTerm) ||
+                        a.Name.ToLower().Contains(_searchTerm.ToLower()))
+            .Where(a => !_filterCategory.HasValue || a.Category == _filterCategory.Value)
+            .OrderBy(a => a.Name)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _allAttributes = await AttributeService.GetAllAsync();
+        }
+        catch { }
+
+        StateHasChanged();
+    }
+
+    private async Task AddAttribute(AttributeDefinition attr)
+    {
+        SelectedAttributes.Add(new PositionAttributeItem
+        {
+            AttributeDefinitionId = attr.Id,
+            AttributeName = attr.Name,
+            DataType = attr.DataType,
+            DisplayOrder = SelectedAttributes.Count
+        });
+
+        await OnChange.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private async Task RemoveAttribute(PositionAttributeItem item)
+    {
+        SelectedAttributes.Remove(item);
+        ReindexOrder();
+        await OnChange.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private async Task MoveUp(PositionAttributeItem item)
+    {
+        var index = SelectedAttributes.IndexOf(item);
+        if (index > 0)
+        {
+            SelectedAttributes.RemoveAt(index);
+            SelectedAttributes.Insert(index - 1, item);
+            ReindexOrder();
+            await OnChange.InvokeAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task MoveDown(PositionAttributeItem item)
+    {
+        var index = SelectedAttributes.IndexOf(item);
+        if (index < SelectedAttributes.Count - 1)
+        {
+            SelectedAttributes.RemoveAt(index);
+            SelectedAttributes.Insert(index + 1, item);
+            ReindexOrder();
+            await OnChange.InvokeAsync();
+            StateHasChanged();
+        }
+    }
+
+    private void ReindexOrder()
+    {
+        for (int i = 0; i < SelectedAttributes.Count; i++)
+        {
+            SelectedAttributes[i].DisplayOrder = i;
+        }
+    }
+
+    public class PositionAttributeItem
+    {
+        public Guid AttributeDefinitionId { get; set; }
+        public string AttributeName { get; set; } = string.Empty;
+        public AttributeDataType DataType { get; set; }
+        public int DisplayOrder { get; set; }
+    }
+}

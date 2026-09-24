@@ -1,0 +1,403 @@
+@page "/positions/{Id:guid}"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using CvManagement.Web.Components.Dialogs
+@using Microsoft.AspNetCore.Authorization
+@using Position = CvManagement.Domain.Entities.Position
+@inject IPositionService PositionService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>@(_position?.Title ?? "Position") - Details</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_position == null)
+{
+    <MudPaper Class="pa-8 text-center" Elevation="1">
+        <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Size="Size.Large" Color="Color.Error" />
+        <MudText Typo="Typo.h5" Class="mt-2">Position not found</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">
+            The position you're looking for doesn't exist or has been deleted.
+        </MudText>
+        <MudButton Href="/positions" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4"
+                   StartIcon="@Icons.Material.Filled.ArrowBack">
+            Back to Positions
+        </MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudGrid>
+        <!-- LEFT: Main Content -->
+        <MudItem xs="12" md="8">
+            <!-- Header Card -->
+            <MudPaper Class="pa-6 mb-4" Elevation="2">
+                <div class="d-flex justify-space-between align-start">
+                    <div>
+                        <MudText Typo="Typo.h4">@_position.Title</MudText>
+                        <div class="d-flex align-center gap-2 mt-2 flex-wrap">
+                            @if (!string.IsNullOrEmpty(_position.Company))
+                            {
+                                <MudText Typo="Typo.body1" Class="mud-text-secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" />
+                                    @_position.Company
+                                </MudText>
+                            }
+                            @if (!string.IsNullOrEmpty(_position.Location))
+                            {
+                                <MudText Typo="Typo.body1" Class="mud-text-secondary ml-3">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
+                                    @_position.Location
+                                </MudText>
+                            }
+                        </div>
+                    </div>
+                    <MudChip T="string" Color="@GetLevelColor(_position.Level)" Size="Size.Medium">
+                        @_position.Level
+                    </MudChip>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_position.ShortDescription))
+                {
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.body1">@_position.ShortDescription</MudText>
+                }
+            </MudPaper>
+
+            <!-- Attributes Card -->
+            <MudPaper Class="pa-6 mb-4" Elevation="2">
+                <div class="d-flex align-center mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-2" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">CV Template Attributes (@_position.Attributes.Count)</MudText>
+                </div>
+
+                @if (!_position.Attributes.Any())
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        No attributes configured for this position.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudList T="string" Dense="true">
+                        @foreach (var pa in _position.Attributes.OrderBy(a => a.DisplayOrder))
+                        {
+                            <MudListItem T="string">
+                                <div class="d-flex align-center" style="width: 100%;">
+                                    <MudIcon Icon="@Icons.Material.Filled.DragIndicator"
+                                             Size="Size.Small" Class="mr-2 mud-text-secondary" />
+                                    <MudText Typo="Typo.body2" Class="flex-grow-1">
+                                        <strong>@pa.AttributeDefinition?.Name</strong>
+                                    </MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                        @pa.AttributeDefinition?.DataType
+                                    </MudChip>
+                                    @if (pa.IsRequired)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-1">
+                                            Required
+                                        </MudChip>
+                                    }
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+            </MudPaper>
+
+            <!-- Access Rules Card -->
+            <MudPaper Class="pa-6 mb-4" Elevation="2">
+                <div class="d-flex align-center mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Security" Class="mr-2" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Access Rules</MudText>
+                </div>
+
+                @if (_position.IsPublic)
+                {
+                    <MudAlert Severity="Severity.Success" Icon="@Icons.Material.Filled.Public" Dense="false">
+                        <MudText Typo="Typo.body2">
+                            <strong>Public Position</strong> — All authenticated users can view and apply.
+                        </MudText>
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Icon="@Icons.Material.Filled.Lock" Dense="false">
+                        <MudText Typo="Typo.body2">
+                            <strong>Restricted Position</strong> — Access controlled by rules.
+                        </MudText>
+                    </MudAlert>
+
+                    @if (!string.IsNullOrEmpty(_position.AccessRulesJson))
+                    {
+                        <MudText Typo="Typo.caption" Class="mt-3 mud-text-secondary">
+                            Rules (JSON):
+                        </MudText>
+                        <MudPaper Class="pa-2 mt-1" Elevation="0"
+                                  Style="background-color: #f5f5f5; font-family: monospace; font-size: 12px;">
+                            <pre style="margin: 0; white-space: pre-wrap;">@_position.AccessRulesJson</pre>
+                        </MudPaper>
+                    }
+                }
+            </MudPaper>
+
+            <!-- Project Filter Card -->
+            <MudPaper Class="pa-6 mb-4" Elevation="2">
+                <div class="d-flex align-center mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mr-2" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Projects Filter</MudText>
+                </div>
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Tags Filter</MudText>
+                        @if (string.IsNullOrEmpty(_position.ProjectTagsFilter))
+                        {
+                            <MudText Typo="Typo.body2">
+                                <em>All projects included</em>
+                            </MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                @foreach (var tag in _position.ProjectTagsFilter.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                        @tag.Trim()
+                                    </MudChip>
+                                }
+                            </div>
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Max Projects in CV</MudText>
+                        <MudText Typo="Typo.h6">@_position.MaxProjects</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <!-- Tabs: CVs + Discussions -->
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+                <MudTabPanel Text="@($"CVs ({_cvCount})")" Icon="@Icons.Material.Filled.Description">
+                    @if (_cvCount == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            <MudText Typo="Typo.body2">
+                                No CVs submitted for this position yet.
+                            </MudText>
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            @_cvCount CV(s) submitted. View them in "All CVs" page.
+                        </MudText>
+                    }
+                </MudTabPanel>
+
+                <MudTabPanel Text="Discussion" Icon="@Icons.Material.Filled.Forum">
+                    <PositionDiscussions PositionId="@Id" />
+                </MudTabPanel>
+            </MudTabs>
+        </MudItem>
+
+        <!-- RIGHT: Sidebar -->
+        <MudItem xs="12" md="4">
+            <!-- Actions Card -->
+            <MudPaper Class="pa-6 mb-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Actions</MudText>
+
+                <AuthorizeView Roles="Recruiter,Administrator">
+                    <Authorized>
+                        <MudButton Href="@($"/positions/{_position.Id}/edit")"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   Class="mb-2">
+                            Edit Position
+                        </MudButton>
+
+                        <MudButton OnClick="@((MouseEventArgs e) => DuplicateAsync())"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.ContentCopy"
+                                   Class="mb-2"
+                                   Disabled="_actionInProgress">
+                            Duplicate
+                        </MudButton>
+
+                        <MudButton OnClick="@((MouseEventArgs e) => DeleteAsync())"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Error"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   Disabled="_actionInProgress">
+                            Delete
+                        </MudButton>
+                    </Authorized>
+                    <NotAuthorized>
+                        <MudAlert Severity="Severity.Info" Dense="true">
+                            Read-only view (Guest/Candidate)
+                        </MudAlert>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </MudPaper>
+
+            <!-- Meta Card -->
+            <MudPaper Class="pa-6" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Info</MudText>
+
+                <div class="d-flex justify-space-between mb-2">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Created</MudText>
+                    <MudText Typo="Typo.body2">@_position.CreatedAt.ToString("g")</MudText>
+                </div>
+                <div class="d-flex justify-space-between mb-2">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Updated</MudText>
+                    <MudText Typo="Typo.body2">@_position.UpdatedAt.ToString("g")</MudText>
+                </div>
+                <div class="d-flex justify-space-between">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Version</MudText>
+                    <MudText Typo="Typo.body2">@_position.Version</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Position? _position;
+    private bool _loading = true;
+    private bool _actionInProgress;
+    private int _cvCount;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("Positions", "/positions"),
+        new BreadcrumbItem("Details", "/positions", disabled: true)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _position = await PositionService.GetByIdWithAttributesAsync(Id);
+
+            if (_position != null)
+            {
+                _cvCount = await PositionService.GetCvCountAsync(Id);
+
+                _breadcrumbs = new List<BreadcrumbItem>
+                {
+                    new BreadcrumbItem("Home", "/"),
+                    new BreadcrumbItem("Positions", "/positions"),
+                    new BreadcrumbItem(_position.Title, $"/positions/{Id}", disabled: true)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task DuplicateAsync()
+    {
+        if (_position == null) return;
+
+        _actionInProgress = true;
+        StateHasChanged();
+
+        try
+        {
+            var (success, error, newPosition) = await PositionService
+                .DuplicateAsync(_position.Id, "system");
+
+            if (success && newPosition != null)
+            {
+                Snackbar.Add($"Position duplicated as '{newPosition.Title}'", Severity.Success);
+                Nav.NavigateTo($"/positions/{newPosition.Id}");
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to duplicate.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _actionInProgress = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_position == null) return;
+
+        var parameters = new DialogParameters
+        {
+            { nameof(ConfirmDeleteDialog.ItemName), _position.Title }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(
+            "Delete Position", parameters);
+
+        var result = await dialog.Result;
+
+        if (result == null || result.Canceled) return;
+
+        _actionInProgress = true;
+        StateHasChanged();
+
+        try
+        {
+            var (success, error) = await PositionService.DeleteAsync(_position.Id, "system");
+
+            if (success)
+            {
+                Snackbar.Add($"Position '{_position.Title}' deleted.", Severity.Success);
+                Nav.NavigateTo("/positions");
+            }
+            else
+            {
+                Snackbar.Add(error ?? "Failed to delete.", Severity.Error);
+                _actionInProgress = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            _actionInProgress = false;
+            StateHasChanged();
+        }
+    }
+
+    private Color GetLevelColor(PositionLevel level) => level switch
+    {
+        PositionLevel.Intern => Color.Default,
+        PositionLevel.Junior => Color.Info,
+        PositionLevel.Middle => Color.Primary,
+        PositionLevel.Senior => Color.Success,
+        PositionLevel.CLevel => Color.Warning,
+        _ => Color.Default
+    };
+}

@@ -1,0 +1,204 @@
+@page "/recruiter/cvs"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@using Position = CvManagement.Domain.Entities.Position
+@using Cv = CvManagement.Domain.Entities.Cv
+@inject ICvService CvService
+@inject IPositionService PositionService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Recruiter,Administrator")]
+
+<PageTitle>All CVs</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">All CVs</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudTextField T="string"
+                          @bind-Value="_searchTerm"
+                          Placeholder="Search by candidate or position..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          OnKeyUp="@((KeyboardEventArgs e) => HandleKeyUp(e))" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="Guid?"
+                       @bind-Value="_filterPositionId"
+                       Label="Position"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true">
+                @foreach (var pos in _positions)
+                {
+                    <MudSelectItem T="Guid?" Value="@pos.Id">@pos.Title</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="4" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="@((MouseEventArgs e) => LoadAsync())" Class="mr-2">
+                Search
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Clear"
+                       OnClick="@((MouseEventArgs e) => ClearFilters())">
+                Clear
+            </MudButton>
+            <MudSpacer />
+            <MudChip T="string" Color="Color.Info">@_cvs.Count CVs</MudChip>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_cvs.Any())
+{
+    <MudPaper Class="pa-8 text-center" Elevation="1">
+        <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Color="Color.Default" />
+        <MudText Typo="Typo.h6" Class="mt-2">No CVs found</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Published CVs will appear here.
+        </MudText>
+    </MudPaper>
+}
+else
+{
+    <MudTable Items="_cvs" Hover="true" Dense="true"
+              OnRowClick="@((TableRowClickEventArgs<Cv> args) => OnRowClick(args))"
+              Class="cursor-pointer">
+        <HeaderContent>
+            <MudTh>Candidate</MudTh>
+            <MudTh>Position</MudTh>
+            <MudTh>Company</MudTh>
+            <MudTh>Level</MudTh>
+            <MudTh>Likes</MudTh>
+            <MudTh>Published</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Candidate">
+                <div class="d-flex align-center">
+                    <MudAvatar Size="Size.Small" Color="Color.Primary" Class="mr-2">
+                        @(context.Candidate?.FirstName?.FirstOrDefault())@(context.Candidate?.LastName?.FirstOrDefault())
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.body2">
+                            <strong>@context.Candidate?.FirstName @context.Candidate?.LastName</strong>
+                        </MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @context.Candidate?.Email
+                        </MudText>
+                    </div>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Position">
+                <MudText Typo="Typo.body2">@context.Position?.Title</MudText>
+            </MudTd>
+            <MudTd DataLabel="Company">
+                <MudText Typo="Typo.body2">@context.Position?.Company</MudText>
+            </MudTd>
+            <MudTd DataLabel="Level">
+                @if (context.Position != null)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Position.Level)">
+                        @context.Position.Level
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Likes">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Favorite" Size="Size.Small"
+                             Color="@(context.Likes.Any() ? Color.Error : Color.Default)"
+                             Class="mr-1" />
+                    <MudText Typo="Typo.body2">@context.Likes.Count</MudText>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Published">
+                <MudText Typo="Typo.body2">
+                    @(context.PublishedAt?.ToString("g") ?? "—")
+                </MudText>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }"
+                           RowsPerPageString="Per page:" />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<Cv> _cvs = new();
+    private List<Position> _positions = new();
+    private string? _searchTerm;
+    private Guid? _filterPositionId;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _positions = await PositionService.GetAllAsync();
+        }
+        catch { }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _cvs = await CvService.GetAllCvsAsync(_searchTerm, _filterPositionId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task ClearFilters()
+    {
+        _searchTerm = null;
+        _filterPositionId = null;
+        await LoadAsync();
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadAsync();
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<Cv> args)
+    {
+        if (args.Item != null)
+        {
+            Nav.NavigateTo($"/cvs/{args.Item.Id}");
+        }
+    }
+
+    private Color GetLevelColor(PositionLevel level) => level switch
+    {
+        PositionLevel.Intern => Color.Default,
+        PositionLevel.Junior => Color.Info,
+        PositionLevel.Middle => Color.Primary,
+        PositionLevel.Senior => Color.Success,
+        PositionLevel.CLevel => Color.Warning,
+        _ => Color.Default
+    };
+}

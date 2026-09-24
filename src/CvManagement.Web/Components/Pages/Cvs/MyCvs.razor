@@ -1,0 +1,153 @@
+@page "/cvs"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using CvManagement.Domain.Entities
+@using System.Security.Claims
+@inject ICvService CvService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "Candidate,Administrator")]
+
+<PageTitle>My CVs</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">My CVs</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <div class="d-flex justify-space-between align-center">
+        <MudText Typo="Typo.body1">
+            You have <strong>@_cvs.Count</strong> CV(s) created.
+        </MudText>
+        <MudButton Href="/cvs/create"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add">
+            Create New CV
+        </MudButton>
+    </div>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_cvs.Any())
+{
+    <MudPaper Class="pa-8 text-center" Elevation="1">
+        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Default" />
+        <MudText Typo="Typo.h6" Class="mt-2">No CVs yet</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Create your first CV by selecting a position.
+        </MudText>
+        <MudButton Href="/cvs/create"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Class="mt-4">
+            Create First CV
+        </MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudTable Items="_cvs" Hover="true" Dense="true"
+              OnRowClick="@((TableRowClickEventArgs<Cv> args) => OnRowClick(args))"
+              Class="cursor-pointer">
+        <HeaderContent>
+            <MudTh>Position</MudTh>
+            <MudTh>Company</MudTh>
+            <MudTh>Level</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Likes</MudTh>
+            <MudTh>Updated</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Position">
+                <MudText Typo="Typo.body2"><strong>@context.Position?.Title</strong></MudText>
+            </MudTd>
+            <MudTd DataLabel="Company">
+                <MudText Typo="Typo.body2">@context.Position?.Company</MudText>
+            </MudTd>
+            <MudTd DataLabel="Level">
+                @if (context.Position != null)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Position.Level)">
+                        @context.Position.Level
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Status">
+                @if (context.Status == CvStatus.Published)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                        Published
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Edit">
+                        Draft
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Likes">
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Favorite" Size="Size.Small" 
+                             Color="Color.Error" Class="mr-1" />
+                    <MudText Typo="Typo.body2">@context.Likes.Count</MudText>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="Updated">
+                <MudText Typo="Typo.body2">@context.UpdatedAt.ToString("g")</MudText>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<Cv> _cvs = new();
+    private string? _userId;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!string.IsNullOrEmpty(_userId))
+            {
+                _cvs = await CvService.GetMyCvsAsync(_userId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<Cv> args)
+    {
+        if (args.Item != null)
+        {
+            Nav.NavigateTo($"/cvs/{args.Item.Id}");
+        }
+    }
+
+    private Color GetLevelColor(PositionLevel level) => level switch
+    {
+        PositionLevel.Intern => Color.Default,
+        PositionLevel.Junior => Color.Info,
+        PositionLevel.Middle => Color.Primary,
+        PositionLevel.Senior => Color.Success,
+        PositionLevel.CLevel => Color.Warning,
+        _ => Color.Default
+    };
+}

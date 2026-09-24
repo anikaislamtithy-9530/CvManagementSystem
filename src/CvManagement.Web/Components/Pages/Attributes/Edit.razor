@@ -1,0 +1,275 @@
+@page "/attributes/{Id:guid}/edit"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Entities
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@inject IAttributeService AttributeService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Recruiter,Administrator")]
+
+<PageTitle>Edit Attribute</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_model == null)
+{
+    <MudAlert Severity="Severity.Error">Attribute not found.</MudAlert>
+    <MudButton Href="/attributes" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Back to List
+    </MudButton>
+}
+else
+{
+    <MudText Typo="Typo.h4" Class="mb-4">Edit: @_model.Name</MudText>
+
+    <MudPaper Class="pa-6" Elevation="2" Style="max-width: 900px;">
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              @bind-Value="_model.Name"
+                              Label="Attribute Name"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              MaxLength="100"
+                              Disabled="@_model.IsBuiltIn" />
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudTextField T="string"
+                              @bind-Value="_model.Description"
+                              Label="Description"
+                              Variant="Variant.Outlined"
+                              Lines="3"
+                              MaxLength="500" />
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudSelect T="AttributeCategory"
+                           @bind-Value="_model.Category"
+                           Label="Category"
+                           Variant="Variant.Outlined"
+                           Required="true">
+                    @foreach (var cat in Enum.GetValues<AttributeCategory>())
+                    {
+                        <MudSelectItem T="AttributeCategory" Value="@cat">@cat</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudSelect T="AttributeDataType"
+                           @bind-Value="_model.DataType"
+                           Label="Data Type"
+                           Variant="Variant.Outlined"
+                           Required="true"
+                           Disabled="@_model.IsBuiltIn">
+                    @foreach (var dt in Enum.GetValues<AttributeDataType>())
+                    {
+                        <MudSelectItem T="AttributeDataType" Value="@dt">@dt</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @if (_model.DataType == AttributeDataType.OneOfMany)
+            {
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  @bind-Value="_dropdownOptionsText"
+                                  Label="Dropdown Options (one per line)"
+                                  Variant="Variant.Outlined"
+                                  Lines="5" />
+                </MudItem>
+            }
+
+            @if (_model.DataType == AttributeDataType.String ||
+                 _model.DataType == AttributeDataType.Text)
+            {
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="int?"
+                                     @bind-Value="_model.MinLength"
+                                     Label="Min Length"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudNumericField T="int?"
+                                     @bind-Value="_model.MaxLength"
+                                     Label="Max Length"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  @bind-Value="_model.RegexPattern"
+                                  Label="Regex Pattern (optional)"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+            }
+
+            @if (_model.DataType == AttributeDataType.Numeric)
+            {
+                <MudItem xs="6" md="4">
+                    <MudNumericField T="decimal?"
+                                     @bind-Value="_model.MinValue"
+                                     Label="Min Value"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="6" md="4">
+                    <MudNumericField T="decimal?"
+                                     @bind-Value="_model.MaxValue"
+                                     Label="Max Value"
+                                     Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  @bind-Value="_model.Unit"
+                                  Label="Unit (optional)"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+            }
+        </MudGrid>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">@_errorMessage</MudAlert>
+        }
+
+        <MudDivider Class="my-6" />
+
+        <div class="d-flex gap-2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Save"
+                       OnClick="@((MouseEventArgs e) => SaveAsync())"
+                       Disabled="_saving">
+                @if (_saving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ml-2">Saving...</MudText>
+                }
+                else
+                {
+                    <MudText>Save Changes</MudText>
+                }
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Cancel"
+                       Href="@($"/attributes/{Id}")">
+                Cancel
+            </MudButton>
+        </div>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private AttributeDefinition? _model;
+    private string _dropdownOptionsText = string.Empty;
+    private string? _errorMessage;
+    private bool _loading = true;
+    private bool _saving;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("Attributes", "/attributes"),
+        new BreadcrumbItem("Edit", "/attributes", disabled: true)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _model = await AttributeService.GetByIdAsync(Id);
+
+            if (_model != null)
+            {
+                // Parse dropdown options
+                if (_model.DataType == AttributeDataType.OneOfMany &&
+                    !string.IsNullOrEmpty(_model.DropdownOptionsJson))
+                {
+                    try
+                    {
+                        var options = System.Text.Json.JsonSerializer
+                            .Deserialize<List<string>>(_model.DropdownOptionsJson);
+                        _dropdownOptionsText = options != null
+                            ? string.Join("\n", options)
+                            : string.Empty;
+                    }
+                    catch { }
+                }
+
+                _breadcrumbs = new List<BreadcrumbItem>
+                {
+                    new BreadcrumbItem("Home", "/"),
+                    new BreadcrumbItem("Attributes", "/attributes"),
+                    new BreadcrumbItem(_model.Name, $"/attributes/{Id}"),
+                    new BreadcrumbItem("Edit", $"/attributes/{Id}/edit", disabled: true)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_model == null) return;
+
+        _errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_model.Name))
+        {
+            _errorMessage = "Name is required.";
+            return;
+        }
+
+        // Handle dropdown options
+        if (_model.DataType == AttributeDataType.OneOfMany)
+        {
+            var options = _dropdownOptionsText
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToList();
+
+            if (options.Count < 2)
+            {
+                _errorMessage = "At least 2 dropdown options required.";
+                return;
+            }
+
+            _model.DropdownOptionsJson = System.Text.Json.JsonSerializer.Serialize(options);
+        }
+
+        _saving = true;
+        StateHasChanged();
+
+        var (success, error) = await AttributeService.UpdateAsync(_model, "system");
+
+        if (success)
+        {
+            Snackbar.Add("Attribute updated!", Severity.Success);
+            Nav.NavigateTo($"/attributes/{_model.Id}");
+        }
+        else
+        {
+            _errorMessage = error ?? "Failed to update.";
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+}

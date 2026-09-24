@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Nav_Home" xml:space="preserve">
+    <value>হোম</value>
+  </data>
+  <data name="Nav_Positions" xml:space="preserve">
+    <value>পদসমূহ</value>
+  </data>
+  <data name="Nav_AttributeLibrary" xml:space="preserve">
+    <value>অ্যাট্রিবিউট লাইব্রেরি</value>
+  </data>
+  <data name="Nav_AllCvs" xml:space="preserve">
+    <value>সমস্ত সিভি</value>
+  </data>
+  <data name="Nav_MyCvs" xml:space="preserve">
+    <value>আমার সিভি</value>
+  </data>
+  <data name="Nav_MyProfile" xml:space="preserve">
+    <value>আমার প্রোফাইল</value>
+  </data>
+  <data name="Nav_Users" xml:space="preserve">
+    <value>ব্যবহারকারী</value>
+  </data>
+
+  <data name="Action_Create" xml:space="preserve">
+    <value>তৈরি করুন</value>
+  </data>
+  <data name="Action_Edit" xml:space="preserve">
+    <value>সম্পাদনা</value>
+  </data>
+  <data name="Action_Delete" xml:space="preserve">
+    <value>মুছুন</value>
+  </data>
+  <data name="Action_Save" xml:space="preserve">
+    <value>সংরক্ষণ</value>
+  </data>
+  <data name="Action_Cancel" xml:space="preserve">
+    <value>বাতিল</value>
+  </data>
+  <data name="Action_Search" xml:space="preserve">
+    <value>খুঁজুন</value>
+  </data>
+  <data name="Action_Clear" xml:space="preserve">
+    <value>পরিষ্কার</value>
+  </data>
+  <data name="Action_Back" xml:space="preserve">
+    <value>ফিরে যান</value>
+  </data>
+  <data name="Action_SignIn" xml:space="preserve">
+    <value>সাইন ইন</value>
+  </data>
+  <data name="Action_SignOut" xml:space="preserve">
+    <value>সাইন আউট</value>
+  </data>
+  <data name="Action_Register" xml:space="preserve">
+    <value>নিবন্ধন</value>
+  </data>
+  <data name="Action_Logout" xml:space="preserve">
+    <value>লগআউট</value>
+  </data>
+
+  <data name="Home_Welcome" xml:space="preserve">
+    <value>সিভি ম্যানেজমেন্ট সিস্টেমে স্বাগতম</value>
+  </data>
+  <data name="Home_Cvs24h" xml:space="preserve">
+    <value>সিভি (২৪ ঘন্টা)</value>
+  </data>
+  <data name="Home_Positions" xml:space="preserve">
+    <value>পদসমূহ</value>
+  </data>
+  <data name="Home_Candidates" xml:space="preserve">
+    <value>প্রার্থী</value>
+  </data>
+  <data name="Home_Recruiters" xml:space="preserve">
+    <value>রিক্রুটার</value>
+  </data>
+  <data name="Home_Hello" xml:space="preserve">
+    <value>হ্যালো</value>
+  </data>
+  <data name="Home_SignedIn" xml:space="preserve">
+    <value>আপনি সাইন ইন করেছেন। পদসমূহ দেখুন বা প্রোফাইল পরিচালনা করুন।</value>
+  </data>
+  <data name="Home_WelcomeGuest" xml:space="preserve">
+    <value>স্বাগতম, অতিথি!</value>
+  </data>
+  <data name="Home_SignInPrompt" xml:space="preserve">
+    <value>সমস্ত বৈশিষ্ট্য ব্যবহার করতে সাইন ইন করুন, বা অতিথি হিসেবে পদ দেখুন।</value>
+  </data>
+
+  <data name="Auth_SignIn" xml:space="preserve">
+    <value>সাইন ইন</value>
+  </data>
+  <data name="Auth_Register" xml:space="preserve">
+    <value>নিবন্ধন</value>
+  </data>
+  <data name="Auth_Email" xml:space="preserve">
+    <value>ইমেইল</value>
+  </data>
+  <data name="Auth_Password" xml:space="preserve">
+    <value>পাসওয়ার্ড</value>
+  </data>
+  <data name="Auth_FirstName" xml:space="preserve">
+    <value>প্রথম নাম</value>
+  </data>
+  <data name="Auth_LastName" xml:space="preserve">
+    <value>শেষ নাম</value>
+  </data>
+  <data name="Auth_Role" xml:space="preserve">
+    <value>ভূমিকা</value>
+  </data>
+  <data name="Auth_SignInTitle" xml:space="preserve">
+    <value>আপনার অ্যাকাউন্টে সাইন ইন করুন</value>
+  </data>
+  <data name="Auth_CreateAccount" xml:space="preserve">
+    <value>অ্যাকাউন্ট তৈরি করুন</value>
+  </data>
+
+  <data name="Positions_Title" xml:space="preserve">
+    <value>পদসমূহ</value>
+  </data>
+  <data name="Positions_CreateNew" xml:space="preserve">
+    <value>পদ তৈরি করুন</value>
+  </data>
+  <data name="Positions_SearchPlaceholder" xml:space="preserve">
+    <value>পদ খুঁজুন...</value>
+  </data>
+  <data name="Positions_Level" xml:space="preserve">
+    <value>স্তর</value>
+  </data>
+  <data name="Positions_NoPositions" xml:space="preserve">
+    <value>এখনো কোনো পদ নেই</value>
+  </data>
+
+  <data name="Cvs_MyCvs" xml:space="preserve">
+    <value>আমার সিভি</value>
+  </data>
+  <data name="Cvs_AllCvs" xml:space="preserve">
+    <value>সমস্ত সিভি</value>
+  </data>
+  <data name="Cvs_CreateNew" xml:space="preserve">
+    <value>নতুন সিভি তৈরি করুন</value>
+  </data>
+  <data name="Cvs_Published" xml:space="preserve">
+    <value>প্রকাশিত</value>
+  </data>
+  <data name="Cvs_Draft" xml:space="preserve">
+    <value>খসড়া</value>
+  </data>
+  <data name="Cvs_Publish" xml:space="preserve">
+    <value>সিভি প্রকাশ করুন</value>
+  </data>
+  <data name="Cvs_Unpublish" xml:space="preserve">
+    <value>অপ্রকাশিত</value>
+  </data>
+  <data name="Cvs_Likes" xml:space="preserve">
+    <value>পছন্দ</value>
+  </data>
+
+  <data name="Profile_Title" xml:space="preserve">
+    <value>আমার প্রোফাইল</value>
+  </data>
+  <data name="Profile_Me" xml:space="preserve">
+    <value>আমি</value>
+  </data>
+  <data name="Profile_Info" xml:space="preserve">
+    <value>তথ্য</value>
+  </data>
+  <data name="Profile_Projects" xml:space="preserve">
+    <value>প্রকল্পসমূহ</value>
+  </data>
+  <data name="Profile_BasicInfo" xml:space="preserve">
+    <value>মৌলিক তথ্য</value>
+  </data>
+  <data name="Profile_AdditionalInfo" xml:space="preserve">
+    <value>অতিরিক্ত তথ্য</value>
+  </data>
+  <data name="Profile_AllChangesSaved" xml:space="preserve">
+    <value>সমস্ত পরিবর্তন সংরক্ষিত</value>
+  </data>
+  <data name="Profile_Saving" xml:space="preserve">
+    <value>সংরক্ষণ করা হচ্ছে...</value>
+  </data>
+  <data name="Profile_HasUnsaved" xml:space="preserve">
+    <value>আপনার অসংরক্ষিত পরিবর্তন আছে। কয়েক সেকেন্ডে স্বয়ংক্রিয়ভাবে সংরক্ষণ হবে...</value>
+  </data>
+  <data name="Profile_SaveNow" xml:space="preserve">
+    <value>এখনই সংরক্ষণ</value>
+  </data>
+  <data name="Profile_AddAttribute" xml:space="preserve">
+    <value>অ্যাট্রিবিউট যোগ করুন</value>
+  </data>
+
+  <data name="Discussion_Title" xml:space="preserve">
+    <value>আলোচনা</value>
+  </data>
+  <data name="Discussion_NoDiscussions" xml:space="preserve">
+    <value>এখনো কোনো আলোচনা নেই</value>
+  </data>
+  <data name="Discussion_PostComment" xml:space="preserve">
+    <value>মন্তব্য পোস্ট করুন</value>
+  </data>
+  <data name="Discussion_BeFirst" xml:space="preserve">
+    <value>আলোচনা শুরু করা প্রথম ব্যক্তি হোন!</value>
+  </data>
+
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>খুঁজুন...</value>
+  </data>
+  <data name="Search_NoResults" xml:space="preserve">
+    <value>কোনো ফলাফল পাওয়া যায়নি</value>
+  </data>
+
+  <data name="Role_Administrator" xml:space="preserve">
+    <value>প্রশাসক</value>
+  </data>
+  <data name="Role_Recruiter" xml:space="preserve">
+    <value>রিক্রুটার</value>
+  </data>
+  <data name="Role_Candidate" xml:space="preserve">
+    <value>প্রার্থী</value>
+  </data>
+</root>

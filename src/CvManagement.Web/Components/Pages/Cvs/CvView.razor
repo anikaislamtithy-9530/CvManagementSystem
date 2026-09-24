@@ -1,0 +1,238 @@
+@page "/cvs/{Id:guid}"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using CvManagement.Domain.Entities
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject ICvService CvService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize]
+
+<PageTitle>CV Details</PageTitle>
+
+<MudBreadcrumbs Items="_breadcrumbs" Class="mb-4" />
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_cv == null)
+{
+    <MudAlert Severity="Severity.Error">CV not found or you don't have permission.</MudAlert>
+    <MudButton Href="/cvs" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">
+        Back
+    </MudButton>
+}
+else
+{
+    <!-- Header -->
+    <MudPaper Class="pa-6 mb-4" Elevation="2">
+        <MudGrid>
+            <MudItem xs="12" md="8">
+                <MudText Typo="Typo.h4">
+                    @_cv.Candidate?.FirstName @_cv.Candidate?.LastName
+                </MudText>
+                <MudText Typo="Typo.h6" Class="mud-text-secondary mt-1">
+                    @_cv.Position?.Title
+                    @if (!string.IsNullOrEmpty(_cv.Position?.Company))
+                    {
+                        <text> · @_cv.Position.Company</text>
+                    }
+                </MudText>
+                <div class="d-flex gap-2 mt-3 flex-wrap">
+                    @if (_cv.Status == CvStatus.Published)
+                    {
+                        <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                            Published
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Icon="@Icons.Material.Filled.Edit">
+                            Draft
+                        </MudChip>
+                    }
+                    <MudChip T="string" Color="Color.Error" Icon="@Icons.Material.Filled.Favorite">
+                        @_likeCount likes
+                    </MudChip>
+                </div>
+            </MudItem>
+            <MudItem xs="12" md="4" Class="d-flex justify-end align-start gap-2">
+                <AuthorizeView Roles="Recruiter,Administrator">
+                    <Authorized>
+                        <MudIconButton Icon="@(_hasLiked ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder)"
+                                       Color="@(_hasLiked ? Color.Error : Color.Default)"
+                                       Size="Size.Large"
+                                       OnClick="@((MouseEventArgs e) => ToggleLikeAsync())" />
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="Candidate,Administrator">
+                    <Authorized>
+                        @if (_cv.CandidateId == _userId)
+                        {
+                            <MudButton Href="@($"/cvs/{_cv.Id}/edit")"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Edit">
+                                Edit
+                            </MudButton>
+                        }
+                    </Authorized>
+                </AuthorizeView>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- Attributes -->
+    <MudPaper Class="pa-6 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" />
+            Profile Information
+        </MudText>
+
+        @foreach (var attr in _cv.Attributes.OrderBy(a =>
+            _cv.Position?.Attributes.FirstOrDefault(pa => pa.AttributeDefinitionId == a.AttributeDefinitionId)?.DisplayOrder ?? 0))
+        {
+            <div class="mb-3">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    @attr.AttributeDefinition?.Name
+                </MudText>
+                @if (string.IsNullOrEmpty(attr.Value))
+                {
+                    <MudText Typo="Typo.body1" Style="color: red;">
+                        <em>(not filled)</em>
+                    </MudText>
+                }
+                else if (attr.AttributeDefinition?.DataType == AttributeDataType.Boolean)
+                {
+                    <MudText Typo="Typo.body1">
+                        @(attr.Value == "true" ? "✓ Yes" : "✗ No")
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body1">@attr.Value</MudText>
+                }
+            </div>
+        }
+    </MudPaper>
+
+    <!-- Projects -->
+    @if (_cv.Projects.Any())
+    {
+        <MudPaper Class="pa-6 mb-4" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Folder" Class="mr-2" />
+                Projects (@_cv.Projects.Count)
+            </MudText>
+
+            @foreach (var cp in _cv.Projects.OrderBy(p => p.DisplayOrder))
+            {
+                if (cp.Project != null)
+                {
+                    <MudPaper Class="pa-4 mb-3" Elevation="1">
+                        <MudText Typo="Typo.h6">@cp.Project.Name</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                            @cp.Project.StartDate.ToString("MMM yyyy") —
+                            @(cp.Project.EndDate?.ToString("MMM yyyy") ?? "Present")
+                        </MudText>
+                        @if (!string.IsNullOrEmpty(cp.Project.Description))
+                        {
+                            <MudText Typo="Typo.body2" Class="mt-2">
+                                @cp.Project.Description
+                            </MudText>
+                        }
+                        @if (cp.Project.Tags.Any())
+                        {
+                            <div class="d-flex gap-1 mt-2 flex-wrap">
+                                @foreach (var tag in cp.Project.Tags)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                        @tag.Tag
+                                    </MudChip>
+                                }
+                            </div>
+                        }
+                    </MudPaper>
+                }
+            }
+        </MudPaper>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private Cv? _cv;
+    private string? _userId;
+    private int _likeCount;
+    private bool _hasLiked;
+    private bool _loading = true;
+
+    private List<BreadcrumbItem> _breadcrumbs = new()
+    {
+        new BreadcrumbItem("Home", "/"),
+        new BreadcrumbItem("My CVs", "/cvs"),
+        new BreadcrumbItem("View", "/cvs", disabled: true)
+    };
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            _cv = await CvService.GetByIdWithDetailsAsync(Id);
+
+            if (_cv != null)
+            {
+                _likeCount = _cv.Likes.Count;
+                if (!string.IsNullOrEmpty(_userId))
+                {
+                    _hasLiked = await CvService.HasLikedAsync(Id, _userId);
+                }
+
+                _breadcrumbs = new List<BreadcrumbItem>
+                {
+                    new BreadcrumbItem("Home", "/"),
+                    new BreadcrumbItem("CVs", "/cvs"),
+                    new BreadcrumbItem(
+                        $"{_cv.Candidate?.FirstName} {_cv.Candidate?.LastName}",
+                        $"/cvs/{Id}", disabled: true)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task ToggleLikeAsync()
+    {
+        if (_cv == null || string.IsNullOrEmpty(_userId)) return;
+
+        var (success, error) = await CvService.ToggleLikeAsync(_cv.Id, _userId);
+
+        if (success)
+        {
+            _hasLiked = !_hasLiked;
+            _likeCount += _hasLiked ? 1 : -1;
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add(error ?? "Failed to toggle like.", Severity.Error);
+        }
+    }
+}
+       

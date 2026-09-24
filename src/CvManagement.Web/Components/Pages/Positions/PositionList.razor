@@ -1,0 +1,217 @@
+@page "/positions"
+@using CvManagement.Application.Interfaces
+@using CvManagement.Domain.Enums
+@using Microsoft.AspNetCore.Authorization
+@using Position = CvManagement.Domain.Entities.Position
+@inject IPositionService PositionService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Positions</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Positions</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="2">
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudTextField T="string"
+                          @bind-Value="_searchTerm"
+                          Placeholder="Search positions..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          OnKeyUp="@((KeyboardEventArgs e) => HandleKeyUp(e))" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="PositionLevel?"
+                       @bind-Value="_filterLevel"
+                       Label="Level"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Clearable="true">
+                @foreach (var lvl in Enum.GetValues<PositionLevel>())
+                {
+                    <MudSelectItem T="PositionLevel?" Value="@lvl">@lvl</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="4" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="@((MouseEventArgs e) => OnSearchClick())" Class="mr-2">
+                Search
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Clear"
+                       OnClick="@((MouseEventArgs e) => OnClearClick())">
+                Clear
+            </MudButton>
+            <MudSpacer />
+            <AuthorizeView Roles="Recruiter,Administrator">
+                <Authorized>
+                    <MudButton Href="/positions/create"
+                               Variant="Variant.Filled" Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.Add">
+                        Create Position
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (!_positions.Any())
+{
+    <MudPaper Class="pa-8 text-center" Elevation="1">
+        <MudIcon Icon="@Icons.Material.Filled.WorkOff" Size="Size.Large" Color="Color.Default" />
+        <MudText Typo="Typo.h6" Class="mt-2">No positions yet</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Positions will appear here once created.
+        </MudText>
+        <AuthorizeView Roles="Recruiter,Administrator">
+            <Authorized>
+                <MudButton Href="/positions/create"
+                           Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Class="mt-4">
+                    Create First Position
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>
+    </MudPaper>
+}
+else
+{
+    <MudTable Items="_positions" Hover="true" Dense="true"
+              OnRowClick="@((TableRowClickEventArgs<Position> args) => OnRowClick(args))"
+              Class="cursor-pointer">
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Company</MudTh>
+            <MudTh>Level</MudTh>
+            <MudTh>Attributes</MudTh>
+            <MudTh>Max Projects</MudTh>
+            <MudTh>Access</MudTh>
+            <MudTh>Updated</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Title">
+                <MudText Typo="Typo.body2"><strong>@context.Title</strong></MudText>
+                @if (!string.IsNullOrEmpty(context.ShortDescription))
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                        @(context.ShortDescription.Length > 60
+                            ? context.ShortDescription.Substring(0, 60) + "..."
+                            : context.ShortDescription)
+                    </MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Company">
+                <MudText Typo="Typo.body2">@context.Company</MudText>
+            </MudTd>
+            <MudTd DataLabel="Level">
+                <MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">
+                    @context.Level
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Attributes">
+                <MudText Typo="Typo.body2">@context.Attributes.Count</MudText>
+            </MudTd>
+            <MudTd DataLabel="Max Projects">
+                <MudText Typo="Typo.body2">@context.MaxProjects</MudText>
+            </MudTd>
+            <MudTd DataLabel="Access">
+                @if (context.IsPublic)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success">
+                        <MudIcon Icon="@Icons.Material.Filled.Public" Size="Size.Small" Class="mr-1" />
+                        Public
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">
+                        <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1" />
+                        Restricted
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Updated">
+                <MudText Typo="Typo.body2">@context.UpdatedAt.ToString("g")</MudText>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100 }"
+                           RowsPerPageString="Per page:" />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private List<Position> _positions = new();
+    private string? _searchTerm;
+    private PositionLevel? _filterLevel;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            _positions = await PositionService.GetAllAsync(_searchTerm, _filterLevel);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task OnSearchClick() => await LoadAsync();
+
+    private async Task OnClearClick()
+    {
+        _searchTerm = null;
+        _filterLevel = null;
+        await LoadAsync();
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadAsync();
+    }
+
+    private void OnRowClick(TableRowClickEventArgs<Position> args)
+    {
+        if (args.Item != null)
+        {
+            Nav.NavigateTo($"/positions/{args.Item.Id}");
+        }
+    }
+
+    private Color GetLevelColor(PositionLevel level) => level switch
+    {
+        PositionLevel.Intern => Color.Default,
+        PositionLevel.Junior => Color.Info,
+        PositionLevel.Middle => Color.Primary,
+        PositionLevel.Senior => Color.Success,
+        PositionLevel.CLevel => Color.Warning,
+        _ => Color.Default
+    };
+}
