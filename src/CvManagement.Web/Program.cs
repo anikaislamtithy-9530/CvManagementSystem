@@ -176,6 +176,23 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<AutoSaveService>();
 builder.Services.AddScoped<IDiscussionService, DiscussionService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+// ==========================================
+// Handle DATABASE_URL env var (Render.com)
+// ==========================================
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+if (!string.IsNullOrEmpty(databaseUrl))
+{
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    var connString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true;";
+    builder.Configuration["ConnectionStrings:DefaultConnection"] = connString;
+}
+
+// ==========================================
+// Render.com PORT support
+// ==========================================
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 

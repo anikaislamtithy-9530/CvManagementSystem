@@ -17,3 +17,4 @@ C:\Users\User\CvManagementSystem\src\CvManagement.Infrastructure\obj\Debug\net10
 C:\Users\User\CvManagementSystem\src\CvManagement.Infrastructure\obj\Debug\net10.0\CvManagement.Infrastructure.pdb
 C:\Users\User\CvManagementSystem\src\CvManagement.Infrastructure\obj\Debug\net10.0\CvManagement.Infrastructure.genruntimeconfig.cache
 C:\Users\User\CvManagementSystem\src\CvManagement.Infrastructure\obj\Debug\net10.0\ref\CvManagement.Infrastructure.dll
+C:\Users\User\CvManagementSystem\src\CvManagement.Infrastructure\obj\Debug\net10.0\CvManagement.Infrastructure.sourcelink.json

@@ -194,3 +194,4 @@ C:\Users\User\CvManagementSystem\src\CvManagement.Web\obj\Debug\net10.0\CvManage
 C:\Users\User\CvManagementSystem\src\CvManagement.Web\obj\Debug\net10.0\ref\CvManagement.Web.dll
 C:\Users\User\CvManagementSystem\src\CvManagement.Web\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.Facebook.dll
 C:\Users\User\CvManagementSystem\src\CvManagement.Web\bin\Debug\net10.0\Microsoft.AspNetCore.Authentication.Google.dll
+C:\Users\User\CvManagementSystem\src\CvManagement.Web\obj\Debug\net10.0\CvManagement.Web.sourcelink.json
